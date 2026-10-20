@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Explore Ahad Hashmani's work in data science, analytics, and engineering."
+    />
+    <meta name="theme-color" content="#111813" />
+    <title>Ahad Hashmani — Portfolio Drive</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+    <script type="module" src="./src/main.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#portfolioView">Skip to portfolio content</a>
+
+    <header class="topbar">
+      <a class="wordmark" href="#home" aria-label="Ahad Hashmani — home">
+        <span class="wordmark-mark" aria-hidden="true">AH</span>
+        <span>AHAD HASHMANI<span class="wordmark-dot">.</span></span>
+      </a>
+      <nav class="primary-nav" aria-label="Portfolio sections">
+        <a href="#about">About</a>
+        <a href="#experience">Experience</a>
+        <a href="#education">Education</a>
+        <a href="#projects">Projects</a>
+        <a href="#skills">Skills</a>
+        <a href="#contact">Contact</a>
+      </nav>
+      <button class="view-switch" id="portfolioToggle" type="button">
+        <span class="view-switch-icon" aria-hidden="true">↗</span>
+        <span>Portfolio view</span>
+      </button>
+    </header>
+
+    <main>
+      <section class="drive-view" id="driveView" aria-label="Interactive portfolio map">
+        <canvas id="worldCanvas" aria-hidden="true"></canvas>
+        <div class="map-vignette" aria-hidden="true"></div>
+
+        <div class="world-label world-label-education" aria-hidden="true">02 / EDUCATION AVENUE</div>
+        <div class="world-label world-label-projects" aria-hidden="true">03 / PROJECT EXPRESSWAY</div>
+        <div class="world-label world-label-experience" aria-hidden="true">01 / EXPERIENCE HIGHWAY</div>
+        <div class="world-label world-label-skills" aria-hidden="true">04 / SKILLS GARAGE</div>
+        <div class="world-label world-label-contact" aria-hidden="true">05 / CONTACT PIT STOP</div>
+
+        <div class="map-topline">
+          <div class="map-status">
+            <span class="live-dot" aria-hidden="true"></span>
+            <span id="drivingStatus">PARKED AT WELCOME PLAZA</span>
+          </div>
+          <div class="map-coordinates" aria-hidden="true">AUSTIN, TX <span>·</span> 30°16' N</div>
+        </div>
+
+        <aside class="map-legend" aria-label="Map districts">
+          <div class="legend-heading">DESTINATIONS <span>05</span></div>
+          <button type="button" data-open-section="experience"><span class="legend-index">01</span><span>Experience</span><span class="legend-arrow">↗</span></button>
+          <button type="button" data-open-section="education"><span class="legend-index">02</span><span>Education</span><span class="legend-arrow">↗</span></button>
+          <button type="button" data-open-section="projects"><span class="legend-index">03</span><span>Projects</span><span class="legend-arrow">↗</span></button>
+          <button type="button" data-open-section="skills"><span class="legend-index">04</span><span>Skills</span><span class="legend-arrow">↗</span></button>
+          <button type="button" data-open-section="contact"><span class="legend-index">05</span><span>Contact</span><span class="legend-arrow">↗</span></button>
+          <div class="legend-foot"><span class="legend-car" aria-hidden="true">▰</span> DRIVE OR SELECT A DESTINATION</div>
+        </aside>
+
+        <section class="welcome-card" id="welcomeCard" aria-labelledby="welcomeTitle">
+          <div class="eyebrow"><span class="eyebrow-line"></span> DATA SCIENCE · ANALYTICS · ENGINEERING</div>
+          <h1 id="welcomeTitle">A portfolio<br />you can <em>drive.</em></h1>
+          <p class="welcome-copy">
+            A little exploration, a lot of real work. Take the wheel—or take the direct route.
+          </p>
+          <div class="welcome-actions">
+            <button class="button button-primary" id="startDriving" type="button">
+              <span aria-hidden="true">▶</span> Start driving
+            </button>
+            <button class="button button-text" id="welcomePortfolio" type="button">
+              Browse portfolio <span aria-hidden="true">↗</span>
+            </button>
+          </div>
+          <div class="welcome-foot">
+            <span class="keycap">W</span><span class="keycap">A</span><span class="keycap">S</span><span class="keycap">D</span>
+            <span>to drive</span><span class="welcome-divider">/</span><span>or pick a district</span>
+          </div>
+        </section>
+
+        <div class="drive-hud" id="driveHud" hidden>
+          <div class="hud-speed"><span id="speedValue">000</span><span class="speed-unit">KM/H</span></div>
+          <div class="hud-rule"></div>
+          <div class="hud-current"><span class="hud-overline">YOU ARE IN</span><span id="currentDistrict">WELCOME PLAZA</span></div>
+          <button class="hud-reset" id="resetCar" type="button" aria-label="Reset car to Welcome Plaza" title="Reset car (R)">↻</button>
+        </div>
+
+        <div class="interaction-prompt" id="interactionPrompt" hidden>
+          <span class="prompt-icon" aria-hidden="true">↵</span>
+          <span><strong id="promptTitle">Explore this district</strong><small>Press E or Enter to open</small></span>
+          <button id="promptOpen" type="button" aria-label="Open nearby destination">OPEN <span aria-hidden="true">↗</span></button>
+        </div>
+
+        <div class="drive-help" id="driveHelp" hidden>
+          <span class="help-steering" aria-hidden="true">⌘</span>
+          <span><strong>WASD</strong> / arrows to drive <i>·</i> <strong>E</strong> to explore <i>·</i> <strong>R</strong> reset</span>
+          <button type="button" id="helpButton">CONTROLS</button>
+        </div>
+
+        <div class="touch-controls" id="touchControls" aria-label="Driving controls">
+          <div class="touch-steering">
+            <button type="button" data-control="left" aria-label="Steer left">←</button>
+            <button type="button" data-control="right" aria-label="Steer right">→</button>
+          </div>
+          <div class="touch-pedals">
+            <button type="button" data-control="brake" aria-label="Brake or reverse">−</button>
+            <button class="touch-accelerate" type="button" data-control="accelerate" aria-label="Accelerate">↑</button>
+          </div>
+          <button class="touch-interact" id="touchInteract" type="button" aria-label="Explore nearby destination">E</button>
+        </div>
+
+        <div class="map-credit" aria-hidden="true">PORTFOLIO DRIVE <span>—</span> BUILT BY AHAD</div>
+      </section>
+
+      <section class="portfolio-view" id="portfolioView" hidden aria-label="Standard portfolio">
+        <div class="portfolio-intro" id="about">
+          <div class="eyebrow"><span class="eyebrow-line"></span> ABOUT / 00</div>
+          <div class="portfolio-hero-grid">
+            <div>
+              <h1>Ahad Hashmani<span class="hero-period">.</span></h1>
+              <p class="portfolio-lede">Data science, analytics, and engineering—connecting thoughtful analysis with practical tools.</p>
+            </div>
+            <div class="portfolio-intro-aside">
+              <span class="availability-dot"></span>
+              <span>Based in Austin, Texas<br />Open to meaningful work and collaboration</span>
+            </div>
+          </div>
+          <p class="about-copy">I’m a data science graduate student at The University of Texas at Austin. My experience spans product reporting, operations analytics, data engineering, and applied research—alongside projects in machine learning, simulation, and data systems.</p>
+          <div class="social-links">
+            <a href="https://www.linkedin.com/in/ahadhashmani" target="_blank" rel="noreferrer">LinkedIn <span aria-hidden="true">↗</span></a>
+            <a href="https://github.com/AhadHashmani" target="_blank" rel="noreferrer">GitHub <span aria-hidden="true">↗</span></a>
+            <button type="button" data-open-section="contact">Get in touch <span aria-hidden="true">↗</span></button>
+          </div>
+        </div>
+
+        <div class="portfolio-body">
+          <section class="portfolio-section" id="experience">
+            <div class="section-heading"><div><div class="eyebrow">01 / EXPERIENCE</div><h2>Where I’ve worked</h2></div><span class="section-count">05 ROLES</span></div>
+            <div id="experienceList" class="experience-list"></div>
+          </section>
+
+          <section class="portfolio-section education-section" id="education">
+            <div class="section-heading"><div><div class="eyebrow">02 / EDUCATION</div><h2>Learning in motion</h2></div><span class="section-count">AUSTIN, TX</span></div>
+            <div id="educationList" class="education-list"></div>
+          </section>
+
+          <section class="portfolio-section projects-section" id="projects">
+            <div class="section-heading"><div><div class="eyebrow">03 / SELECTED PROJECTS</div><h2>Things I’ve explored</h2></div><span class="section-count">20 PROJECT RECORDS</span></div>
+            <p class="section-intro">A selection from a wider project archive. Status labels distinguish working prototypes, research, coursework, forks, and ideas that still need more detail.</p>
+            <div id="projectList" class="project-grid"></div>
+          </section>
+
+          <section class="portfolio-section skills-section" id="skills">
+            <div class="section-heading"><div><div class="eyebrow">04 / TOOLKIT</div><h2>Tools of the trade</h2></div><span class="section-count">EVIDENCE-LED</span></div>
+            <p class="section-intro">A working toolkit, not a set of proficiency scores. Skills are grouped by the kinds of work they support.</p>
+            <div id="skillsList" class="skills-grid"></div>
+          </section>
+
+          <section class="portfolio-section community-section" id="community">
+            <div class="section-heading"><div><div class="eyebrow">COMMUNITY / 05</div><h2>Beyond the day job</h2></div><span class="section-count">SERVICE & LEADERSHIP</span></div>
+            <div id="communityList" class="community-grid"></div>
+          </section>
+
+          <section class="contact-section" id="contact">
+            <div class="eyebrow"><span class="eyebrow-line"></span> 05 / CONTACT</div>
+            <h2>Let’s make<br /><em>something useful.</em></h2>
+            <p>For professional conversations, collaboration, or just to say hello.</p>
+            <div class="contact-actions">
+              <a href="https://www.linkedin.com/in/ahadhashmani" target="_blank" rel="noreferrer">Connect on LinkedIn <span aria-hidden="true">↗</span></a>
+              <a href="https://github.com/AhadHashmani" target="_blank" rel="noreferrer">Explore my GitHub <span aria-hidden="true">↗</span></a>
+            </div>
+          </section>
+        </div>
+        <footer class="portfolio-footer"><a href="#home">AHAD HASHMANI<span>.</span></a><span>PORTFOLIO DRIVE · 2026</span><button id="backToMap" type="button">Back to the map ↑</button></footer>
+      </section>
+    </main>
+
+    <dialog class="content-dialog" id="contentDialog" aria-labelledby="dialogTitle">
+      <div class="dialog-top">
+        <span class="dialog-kicker" id="dialogKicker">DESTINATION / 01</span>
+        <button class="dialog-close" id="dialogClose" type="button" aria-label="Close details">×</button>
+      </div>
+      <div class="dialog-content" id="dialogContent"></div>
+    </dialog>
+
+    <div class="screen-reader-only" id="announcer" aria-live="polite" aria-atomic="true"></div>
+    <noscript>
+      <div class="noscript-note">This interactive portfolio needs JavaScript to load its resume-backed content. You can still visit <a href="https://www.linkedin.com/in/ahadhashmani">LinkedIn</a> or <a href="https://github.com/AhadHashmani">GitHub</a>.</div>
+    </noscript>
+  </body>
+</html>
