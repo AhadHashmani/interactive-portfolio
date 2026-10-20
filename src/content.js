@@ -11,11 +11,11 @@ export const profile = {
 };
 
 export const districts = [
-  { id: "experience", title: "Experience Highway", shortTitle: "Experience", number: "01", x: 1240, y: 510, signX: 1090, signY: 425, color: "#b9e68a", tagline: "Roles, teams & real-world problem solving" },
-  { id: "education", title: "Education Avenue", shortTitle: "Education", number: "02", x: 780, y: 205, signX: 810, signY: 285, color: "#8bd8ba", tagline: "A foundation built in Austin" },
-  { id: "projects", title: "Project Expressway", shortTitle: "Projects", number: "03", x: 315, y: 510, signX: 445, signY: 425, color: "#d4a5f5", tagline: "Experiments, prototypes & technical work" },
-  { id: "skills", title: "Skills Garage", shortTitle: "Skills", number: "04", x: 780, y: 840, signX: 905, signY: 755, color: "#efbd76", tagline: "Tools connected to evidence" },
-  { id: "contact", title: "Contact Pit Stop", shortTitle: "Contact", number: "05", x: 1240, y: 840, signX: 1330, signY: 755, color: "#8bd8e2", tagline: "Open a conversation" },
+  { id: "experience", title: "Experience Highway", shortTitle: "Experience", number: "01", x: 1600, y: 510, signX: 1530, signY: 425, color: "#b9e68a", tagline: "Roles, teams & real-world problem solving" },
+  { id: "education", title: "Education Avenue", shortTitle: "Education", number: "02", x: 780, y: 110, signX: 890, signY: 340, color: "#8bd8ba", tagline: "A foundation built in Austin" },
+  { id: "projects", title: "Project Expressway", shortTitle: "Projects", number: "03", x: 150, y: 510, signX: 220, signY: 425, color: "#d4a5f5", tagline: "Experiments, prototypes & technical work" },
+  { id: "skills", title: "Skills Garage", shortTitle: "Skills", number: "04", x: 780, y: 1110, signX: 900, signY: 870, color: "#efbd76", tagline: "Tools connected to evidence" },
+  { id: "contact", title: "Contact Pit Stop", shortTitle: "Contact", number: "05", x: 1570, y: 700, signX: 1470, signY: 630, color: "#8bd8e2", tagline: "Open a conversation" },
 ];
 
 export const experience = [
@@ -23,6 +23,8 @@ export const experience = [
     id: "togetherwork",
     organization: "Togetherwork",
     role: "Product and Data Intern",
+    mark: "TW",
+    brandColor: "#c2ed88",
     dates: "Sep 2026 — Present",
     location: "Austin, TX",
     summary: "Build reporting and dashboard experiences that help product, engineering, and development teams work with business data.",
@@ -37,6 +39,8 @@ export const experience = [
     id: "maxel-lab",
     organization: "Data Systems for Human Intelligence · Maxel Lab, UPenn",
     role: "Research Fellow, Engineering Team",
+    mark: "M",
+    brandColor: "#90d6bd",
     dates: "May 2026 — Present",
     location: null,
     summary: "Contribute to research on humanized AI agents modeled on recorded human coding, marketing, and business workflows.",
@@ -50,6 +54,8 @@ export const experience = [
     id: "fifa",
     organization: "FIFA World Cup 26",
     role: "Operations and Analytics Intern · Safety / Security",
+    mark: "FIFA\n26",
+    brandColor: "#e2c774",
     dates: "May 2026 — Jul 2026",
     location: "Houston, TX",
     summary: "Supported safety and security operations with logistics analysis, visualizations, and field technology troubleshooting.",
@@ -64,6 +70,8 @@ export const experience = [
     id: "foodscope",
     organization: "FoodScope AI",
     role: "Data Analyst & Marketing Intern",
+    mark: "FS",
+    brandColor: "#e8a480",
     dates: "May 2025 — Jul 2025",
     location: "Remote",
     summary: "Combined consumer analysis and marketing operations across R, SQL, and Python workflows.",
@@ -78,6 +86,8 @@ export const experience = [
     id: "axiom",
     organization: "Axiom Finance",
     role: "Data Engineer / Data Analyst",
+    mark: "AX",
+    brandColor: "#8bb8e7",
     dates: "Jan 2025 — May 2026",
     location: "Austin, TX",
     summary: "Worked across data pipelines and financial analytics for a fintech startup.",
@@ -316,6 +326,18 @@ export const projects = [
   },
 ];
 
+export const exhibits = [
+  { id: "togetherwork", type: "experience", contentId: "togetherwork", roadId: "experience", title: "Togetherwork", kicker: "PRODUCT & DATA", mark: "TW", visual: "dashboard", x: 950, y: 510, side: -1, color: "#b9e68a" },
+  { id: "maxel-lab", type: "experience", contentId: "maxel-lab", roadId: "experience", title: "Maxel Lab · UPenn", kicker: "RESEARCH FELLOW", mark: "M", visual: "agent", x: 1085, y: 510, side: 1, color: "#90d6bd" },
+  { id: "fifa", type: "experience", contentId: "fifa", roadId: "experience", title: "FIFA World Cup 26", kicker: "OPERATIONS & ANALYTICS", mark: "26", visual: "world-cup-trophy", x: 1220, y: 510, side: -1, color: "#e2c774" },
+  { id: "foodscope", type: "experience", contentId: "foodscope", roadId: "experience", title: "FoodScope AI", kicker: "DATA & MARKETING", mark: "FS", visual: "foodscope", x: 1355, y: 510, side: 1, color: "#e8a480" },
+  { id: "axiom", type: "experience", contentId: "axiom", roadId: "experience", title: "Axiom Finance", kicker: "DATA ENGINEERING", mark: "A", visual: "finance", x: 1490, y: 510, side: -1, color: "#8bb8e7" },
+  { id: "ecoli-capstone", type: "project", contentId: "ecoli-capstone", roadId: "projects", title: "Austin E. coli Capstone", kicker: "WATERSHED DATA SCIENCE", mark: "H₂O", visual: "water", x: 650, y: 510, side: -1, color: "#8bd8e2" },
+  { id: "roboticsops", type: "project", contentId: "roboticsops", roadId: "projects", title: "RoboticsOps", kicker: "WAREHOUSE PROTOTYPE", mark: "R", visual: "robot", x: 515, y: 510, side: 1, color: "#d4a5f5" },
+  { id: "scorecastml", type: "project", contentId: "scorecastml", roadId: "projects", title: "ScorecastML", kicker: "NBA PREDICTION", mark: "S", visual: "basketball", x: 380, y: 510, side: -1, color: "#edb478" },
+  { id: "tx-flood", type: "project", contentId: "tx-flood", roadId: "projects", title: "TxFlood", kicker: "AUSTIN WATERSHEDS", mark: "TX", visual: "flood", x: 245, y: 510, side: 1, color: "#8bd8e2" },
+];
+
 export const skillGroups = [
   {
     name: "Programming",
@@ -398,4 +420,5 @@ export const allContent = {
   skillGroups,
   community,
   districts,
+  exhibits,
 };

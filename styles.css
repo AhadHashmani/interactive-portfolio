@@ -149,6 +149,11 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--lime); outline-
 .experience-list { border-top: 1px solid var(--line); }
 .experience-card { display: grid; grid-template-columns: minmax(165px, .72fr) minmax(0, 1.6fr); gap: 38px; padding: 25px 0 27px; border-bottom: 1px solid var(--line); }
 .experience-meta { display: flex; flex-direction: column; gap: 8px; }
+.job-logo { display: grid; place-items: center; width: 48px; height: 48px; margin-bottom: 5px; border: 1px solid color-mix(in srgb, var(--brand-color), transparent 35%); background: color-mix(in srgb, var(--brand-color), transparent 91%); color: var(--brand-color); font: 700 11px/1.05 var(--mono); letter-spacing: -.06em; text-align: center; white-space: pre-line; }
+.experience-card:nth-child(2) .job-logo { border-radius: 50%; font: 600 19px var(--display); }
+.experience-card:nth-child(3) .job-logo { border-radius: 50% 50% 8px 8px; font-size: 9px; letter-spacing: -.08em; }
+.experience-card:nth-child(4) .job-logo { border-radius: 45% 45% 3px 3px; }
+.experience-card:nth-child(5) .job-logo { border-width: 2px; transform: rotate(-4deg); }
 .experience-meta time { color: var(--lime); font: 9px var(--mono); }
 .experience-meta span { color: #8f998d; font: 9px var(--mono); }
 .experience-main h3, .education-card h3, .community-card h3 { margin: 0; font: 600 17px var(--display); letter-spacing: -.025em; }

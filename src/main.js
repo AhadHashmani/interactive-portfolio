@@ -2,6 +2,7 @@ import {
   community,
   districts,
   education,
+  exhibits,
   experience,
   profile,
   projects,
@@ -9,11 +10,12 @@ import {
 } from "./content.js";
 
 const DRIVE = {
-  worldWidth: 1560,
-  worldHeight: 1080,
+  worldWidth: 1800,
+  worldHeight: 1200,
   cameraDistance: 160,
   cameraHeight: 125,
-  roadWidth: 174,
+  roadWidth: 156,
+  exhibitOffset: 96,
   horizon: 0.28,
   focalLength: 0.72,
   maxForwardSpeed: 220,
@@ -23,30 +25,39 @@ const DRIVE = {
   coast: 110,
   maxSteering: 2.1,
   offRoadSpeedRatio: 0.58,
-  interactionRadius: 112,
-  interactionExitRadius: 148,
-  interactionSpeed: 44,
+  interactionRadius: 128,
+  interactionExitRadius: 160,
+  interactionSpeed: 48,
   cameraSmoothing: 8.5,
   fixedStep: 1 / 60,
 };
 
 const ROAD_SEGMENTS = [
-  { x1: 0, y1: 510, x2: DRIVE.worldWidth, y2: 510 },
-  { x1: 780, y1: 0, x2: 780, y2: DRIVE.worldHeight },
-  { x1: 780, y1: 840, x2: DRIVE.worldWidth, y2: 840 },
-  { x1: 1190, y1: 510, x2: 1190, y2: 840 },
+  { id: "projects", name: "PROJECT EXPRESSWAY", x1: 0, y1: 510, x2: 780, y2: 510, color: "#c4a4e5" },
+  { id: "experience", name: "EXPERIENCE HIGHWAY", x1: 780, y1: 510, x2: 1740, y2: 510, color: "#b9e68a" },
+  { id: "education", name: "EDUCATION AVENUE", x1: 780, y1: 0, x2: 780, y2: 510, color: "#8bd8ba" },
+  { id: "skills", name: "SKILLS GARAGE ROAD", x1: 780, y1: 510, x2: 780, y2: 1200, color: "#efbd76" },
+  { id: "contact-connector", name: "CONTACT WAY", x1: 780, y1: 700, x2: 1740, y2: 700, color: "#8bd8e2" },
+];
+
+const ROUTE_SIGNS = [
+  { roadId: "experience", along: 82, side: 1 },
+  { roadId: "projects", along: 700, side: -1 },
+  { roadId: "education", along: 396, side: 1 },
+  { roadId: "skills", along: 108, side: -1 },
+  { roadId: "contact-connector", along: 130, side: 1 },
 ];
 
 const BUILDINGS = [
-  { x: 575, y: 76, w: 126, d: 100, h: 86, color: "#c9d6b0", label: "CAMPUS HALL" },
-  { x: 878, y: 84, w: 112, d: 86, h: 72, color: "#b6c8a5", label: "STUDY HOUSE" },
-  { x: 154, y: 293, w: 112, d: 88, h: 74, color: "#d4c8a7", label: "RESEARCH LAB" },
-  { x: 324, y: 263, w: 128, d: 92, h: 82, color: "#c3d1ae", label: "DATA STUDIO" },
-  { x: 1260, y: 288, w: 124, d: 92, h: 84, color: "#d6d0b8", label: "OFFICE 01" },
-  { x: 1293, y: 895, w: 128, d: 100, h: 82, color: "#c1d0b5", label: "PIT STOP" },
-  { x: 540, y: 916, w: 122, d: 92, h: 80, color: "#dcc7a1", label: "WORKSHOP" },
-  { x: 842, y: 930, w: 128, d: 94, h: 78, color: "#c9b991", label: "TOOL SHED" },
-  { x: 1020, y: 916, w: 116, d: 90, h: 76, color: "#c9d1b5", label: "COMMUNITY HALL" },
+  { x: 540, y: 62, w: 126, d: 100, h: 86, color: "#c9d6b0", label: "CAMPUS HALL" },
+  { x: 888, y: 58, w: 112, d: 86, h: 72, color: "#b6c8a5", label: "STUDY HOUSE" },
+  { x: 140, y: 270, w: 112, d: 88, h: 74, color: "#d4c8a7", label: "RESEARCH LAB" },
+  { x: 330, y: 280, w: 128, d: 92, h: 82, color: "#c3d1ae", label: "DATA STUDIO" },
+  { x: 1630, y: 250, w: 124, d: 92, h: 84, color: "#d6d0b8", label: "OFFICE 01" },
+  { x: 1590, y: 890, w: 128, d: 100, h: 82, color: "#c1d0b5", label: "PIT STOP" },
+  { x: 560, y: 966, w: 122, d: 92, h: 80, color: "#dcc7a1", label: "WORKSHOP" },
+  { x: 870, y: 970, w: 128, d: 94, h: 78, color: "#c9b991", label: "TOOL SHED" },
+  { x: 1110, y: 930, w: 116, d: 90, h: 76, color: "#c9d1b5", label: "COMMUNITY HALL" },
 ];
 
 const canvas = document.querySelector("#worldCanvas");
@@ -122,6 +133,16 @@ function element(tag, className, text) {
   return node;
 }
 
+function exhibitWorldPoint(exhibit) {
+  const road = ROAD_SEGMENTS.find((segment) => segment.id === exhibit.roadId);
+  if (!road) return null;
+  const dx = road.x2 - road.x1;
+  const dy = road.y2 - road.y1;
+  const length = Math.hypot(dx, dy);
+  const along = (exhibit.x - road.x1) * (dx / length) + (exhibit.y - road.y1) * (dy / length);
+  return roadPoint(road, along, exhibit.side * DRIVE.exhibitOffset);
+}
+
 function makeTagRow(values) {
   const row = element("div", "tag-row");
   values.forEach((value) => row.append(element("span", "tag", value)));
@@ -133,6 +154,11 @@ function renderExperience() {
   experience.forEach((item) => {
     const card = element("article", "experience-card");
     const meta = element("div", "experience-meta");
+    const logo = element("span", "job-logo", item.mark.replace("\n", " "));
+    logo.setAttribute("role", "img");
+    logo.setAttribute("aria-label", `${item.organization} mark`);
+    logo.style.setProperty("--brand-color", item.brandColor);
+    meta.append(logo);
     meta.append(element("time", "", item.dates));
     if (item.location) meta.append(element("span", "", item.location));
     const main = element("div", "experience-main");
@@ -144,10 +170,6 @@ function renderExperience() {
     main.append(bullets, makeTagRow(item.tools));
     card.append(meta, main);
     list.append(card);
-  });
-  document.querySelector(".skip-link").addEventListener("click", (event) => {
-    event.preventDefault();
-    goToPortfolioSection("about");
   });
 }
 
@@ -333,6 +355,25 @@ function openProject(projectId, route = `project/${projectId}`) {
     return;
   }
   openDialog("projects", project.title, (container) => renderProjectDetail(container, project), route);
+}
+
+function openExperienceItem(experienceId, route = `experience/${experienceId}`) {
+  const item = experience.find((entry) => entry.id === experienceId);
+  if (!item) {
+    openSection("experience", "experience");
+    return;
+  }
+  openDialog("experience", item.organization, (container) => {
+    appendHeading(
+      container,
+      "EXPERIENCE HIGHWAY / ROLE",
+      item.organization,
+      `${item.role} · ${item.dates}${item.location ? ` · ${item.location}` : ""}`,
+    );
+    container.append(element("p", "", item.summary));
+    appendBullets(container, "Selected contributions", item.contributions);
+    container.append(element("h3", "", "Tools & capabilities"), makeTagRow(item.tools));
+  }, route);
 }
 
 function openSection(sectionId, route = sectionId) {
@@ -620,16 +661,25 @@ function distanceToSegment(x, y, segment) {
 
 function updateInteraction() {
   if (!game.driving || game.dialogOpen) return;
-  const eligible = districts
-    .map((district) => ({ district, range: distance(game.car, district) }))
-    .filter(({ district, range }) => range < (game.activePrompt?.id === district.id ? DRIVE.interactionExitRadius : DRIVE.interactionRadius))
+  const roadPositionedExhibits = exhibits.map((exhibit) => ({
+    ...exhibit,
+    ...exhibitWorldPoint(exhibit),
+    targetType: "exhibit",
+  }));
+  const destinations = [
+    ...districts.map((target) => ({ ...target, targetType: "district" })),
+    ...roadPositionedExhibits,
+  ];
+  const eligible = destinations
+    .map((target) => ({ target, range: distance(game.car, target) }))
+    .filter(({ target, range }) => range < (game.activePrompt?.id === target.id ? DRIVE.interactionExitRadius : DRIVE.interactionRadius))
     .sort((a, b) => a.range - b.range)[0];
-  const next = eligible && Math.abs(game.car.speed) < DRIVE.interactionSpeed ? eligible.district : null;
+  const next = eligible && Math.abs(game.car.speed) < DRIVE.interactionSpeed ? eligible.target : null;
   game.activePrompt = next;
   const prompt = document.querySelector("#interactionPrompt");
   prompt.hidden = !next;
   if (next) {
-    document.querySelector("#promptTitle").textContent = next.title;
+    document.querySelector("#promptTitle").textContent = next.targetType === "exhibit" ? `Explore ${next.title}` : next.title;
     if (game.previousPrompt !== next.id) {
       announce(`${next.title} nearby. Press E or Enter to explore.`);
       game.previousPrompt = next.id;
@@ -641,6 +691,11 @@ function updateInteraction() {
 
 function openActivePrompt() {
   if (!game.activePrompt) return;
+  if (game.activePrompt.targetType === "exhibit") {
+    if (game.activePrompt.type === "experience") openExperienceItem(game.activePrompt.contentId);
+    else openProject(game.activePrompt.contentId);
+    return;
+  }
   game.visited.add(game.activePrompt.id);
   safeStorage.set("portfolio-drive-visited", [...game.visited].join(","));
   openSection(game.activePrompt.id);
@@ -699,6 +754,11 @@ function drawWorld() {
   drawRoads();
   drawTrees();
   BUILDINGS.forEach(drawBuilding);
+  drawRouteSigns();
+  exhibits
+    .map((exhibit) => ({ exhibit, depth: (exhibit.x - projection.cameraX) * projection.forwardX + (exhibit.y - projection.cameraY) * projection.forwardY }))
+    .sort((a, b) => b.depth - a.depth)
+    .forEach(({ exhibit }) => drawExhibit(exhibit));
   districts.forEach(drawDistrict);
   drawPlayerCar();
 }
@@ -806,7 +866,8 @@ function drawRoadMarkings() {
 
 function drawRoads() {
   context.save();
-  for (const segment of ROAD_SEGMENTS) drawRoadRibbon(segment, DRIVE.roadWidth * .58, "#bcb598");
+  for (const segment of ROAD_SEGMENTS) drawRoadRibbon(segment, DRIVE.roadWidth * .58, segment.color);
+  for (const segment of ROAD_SEGMENTS) drawRoadRibbon(segment, DRIVE.roadWidth * .54, "#bcb598");
   for (const segment of ROAD_SEGMENTS) drawRoadRibbon(segment, DRIVE.roadWidth * .5, "#48544b");
   for (const segment of ROAD_SEGMENTS) drawRoadRibbon(segment, DRIVE.roadWidth * .45, "#505d52");
   drawRoadMarkings();
@@ -928,6 +989,287 @@ function drawSign(district) {
   context.fillStyle = "#d5dece";
   context.fillText("E  TO EXPLORE", x, y + boardHeight * .74, boardWidth - 8);
   context.restore();
+}
+
+function drawRouteSigns() {
+  for (const sign of ROUTE_SIGNS) {
+    const segment = ROAD_SEGMENTS.find((road) => road.id === sign.roadId);
+    if (!segment) continue;
+    const destination = districts.find((district) => district.id === segment.id || segment.id.startsWith(`${district.id}-`));
+    if (!destination) continue;
+    const point = roadPoint(segment, sign.along, sign.side * (DRIVE.roadWidth * .78));
+    const base = projectWorldPoint(point.x, point.y);
+    if (!base || base.x < -180 || base.x > game.width + 180) continue;
+    const scale = clamp(base.scale, .4, 1.35);
+    const width = 178 * scale;
+    const height = 49 * scale;
+    const post = 76 * scale;
+    const x = base.x;
+    const y = base.y - post;
+    context.save();
+    context.fillStyle = "#464735";
+    context.fillRect(x - width * .36, y + height * .62, 4 * scale, post * .4);
+    context.fillRect(x + width * .31, y + height * .62, 4 * scale, post * .4);
+    context.fillStyle = "#1a271d";
+    context.fillRect(x - width / 2, y, width, height);
+    context.strokeStyle = destination.color;
+    context.lineWidth = Math.max(1, scale * 1.6);
+    context.strokeRect(x - width / 2, y, width, height);
+    context.textAlign = "center";
+    context.textBaseline = "middle";
+    context.fillStyle = destination.color;
+    context.font = `500 ${clamp(9 * scale, 7, 12)}px 'DM Mono', monospace`;
+    const arrow = segment.id === "projects" ? "←" : segment.id === "education" ? "↑" : segment.id === "skills" ? "↓" : "→";
+    context.fillText(`${destination.number}  ${destination.shortTitle.toUpperCase()} ${arrow}`, x, y + height * .38, width - 10);
+    context.fillStyle = "#f3f0df";
+    context.font = `400 ${clamp(7 * scale, 6, 9)}px 'DM Mono', monospace`;
+    context.fillText(segment.name, x, y + height * .72, width - 10);
+    context.restore();
+  }
+}
+
+function drawBillboardArtwork(exhibit, x, y, width, height) {
+  context.save();
+  context.fillStyle = `${exhibit.color}26`;
+  context.fillRect(x, y, width, height);
+  context.strokeStyle = `${exhibit.color}88`;
+  context.lineWidth = 1;
+  context.strokeRect(x, y, width, height);
+  const centerX = x + width / 2;
+  const centerY = y + height / 2;
+  context.translate(centerX, centerY);
+  const unit = Math.min(width, height) / 50;
+  context.scale(unit, unit);
+  context.lineCap = "round";
+  context.lineJoin = "round";
+  context.strokeStyle = exhibit.color;
+  context.fillStyle = exhibit.color;
+
+  switch (exhibit.visual) {
+    case "dashboard":
+      context.strokeStyle = "rgba(231, 239, 215, .8)";
+      context.strokeRect(-20, -15, 40, 30);
+      context.fillStyle = exhibit.color;
+      context.fillRect(-15, 4, 6, 7);
+      context.fillRect(-4, -3, 6, 14);
+      context.fillRect(7, -10, 6, 21);
+      context.beginPath();
+      context.moveTo(-15, -7);
+      context.lineTo(-4, -12);
+      context.lineTo(5, -8);
+      context.lineTo(15, -13);
+      context.stroke();
+      break;
+    case "agent":
+      context.beginPath();
+      context.arc(0, -8, 7, 0, Math.PI * 2);
+      context.fill();
+      context.beginPath();
+      context.moveTo(-13, 17);
+      context.quadraticCurveTo(-12, 1, 0, 1);
+      context.quadraticCurveTo(12, 1, 13, 17);
+      context.closePath();
+      context.fill();
+      context.strokeStyle = "#23352c";
+      context.beginPath();
+      context.moveTo(-3, -8);
+      context.lineTo(0, -6);
+      context.lineTo(3, -8);
+      context.stroke();
+      break;
+    case "foodscope":
+      context.beginPath();
+      context.ellipse(0, 1, 17, 12, -.18, 0, Math.PI * 2);
+      context.stroke();
+      context.beginPath();
+      context.moveTo(-1, 9);
+      context.quadraticCurveTo(0, -13, 14, -18);
+      context.quadraticCurveTo(15, -4, -1, 9);
+      context.fill();
+      context.strokeStyle = "#334438";
+      context.beginPath();
+      context.moveTo(1, 6);
+      context.lineTo(10, -10);
+      context.stroke();
+      break;
+    case "finance":
+      context.beginPath();
+      context.moveTo(-18, 14);
+      context.lineTo(-18, -8);
+      context.lineTo(-8, -8);
+      context.lineTo(-8, 14);
+      context.moveTo(-3, 14);
+      context.lineTo(-3, -16);
+      context.lineTo(7, -16);
+      context.lineTo(7, 14);
+      context.moveTo(12, 14);
+      context.lineTo(12, -1);
+      context.lineTo(22, -1);
+      context.lineTo(22, 14);
+      context.stroke();
+      context.beginPath();
+      context.moveTo(-18, -18);
+      context.lineTo(-2, -22);
+      context.lineTo(9, -15);
+      context.lineTo(20, -24);
+      context.stroke();
+      break;
+    case "water":
+    case "flood":
+      context.beginPath();
+      context.moveTo(0, -22);
+      context.bezierCurveTo(-6, -11, -17, 1, -17, 9);
+      context.arc(0, 9, 17, Math.PI, 0);
+      context.bezierCurveTo(17, 1, 6, -11, 0, -22);
+      context.fill();
+      context.strokeStyle = "#294a4a";
+      context.beginPath();
+      context.moveTo(-9, 8);
+      context.quadraticCurveTo(-4, 2, 0, 8);
+      context.quadraticCurveTo(5, 14, 10, 7);
+      context.stroke();
+      break;
+    case "robot":
+      context.strokeRect(-15, -15, 30, 27);
+      context.fillRect(-10, -8, 5, 5);
+      context.fillRect(5, -8, 5, 5);
+      context.beginPath();
+      context.moveTo(-5, 4);
+      context.lineTo(5, 4);
+      context.moveTo(0, -15);
+      context.lineTo(0, -21);
+      context.arc(0, -23, 2, 0, Math.PI * 2);
+      context.stroke();
+      context.beginPath();
+      context.moveTo(-9, 12);
+      context.lineTo(-12, 19);
+      context.moveTo(9, 12);
+      context.lineTo(12, 19);
+      context.stroke();
+      break;
+    case "basketball":
+      context.beginPath();
+      context.arc(0, 0, 20, 0, Math.PI * 2);
+      context.fill();
+      context.strokeStyle = "#6f482d";
+      context.lineWidth = 2;
+      context.beginPath();
+      context.moveTo(-19, -4);
+      context.quadraticCurveTo(0, -12, 19, -4);
+      context.moveTo(-19, 5);
+      context.quadraticCurveTo(0, 13, 19, 5);
+      context.moveTo(-5, -19);
+      context.quadraticCurveTo(5, 0, -5, 19);
+      context.moveTo(6, -19);
+      context.quadraticCurveTo(-6, 0, 6, 19);
+      context.stroke();
+      break;
+    case "world-cup-trophy":
+      drawWorldCupTrophy(0, 0, .75);
+      break;
+    default:
+      context.beginPath();
+      context.arc(0, 0, 17, 0, Math.PI * 2);
+      context.fill();
+  }
+  context.restore();
+}
+
+function drawWorldCupTrophy(x, y, scale = 1) {
+  context.save();
+  context.translate(x, y);
+  context.scale(scale, scale);
+  const gold = context.createLinearGradient(-16, -22, 15, 22);
+  gold.addColorStop(0, "#fff0a2");
+  gold.addColorStop(.45, "#d5a83d");
+  gold.addColorStop(1, "#94651d");
+  context.fillStyle = gold;
+  context.strokeStyle = "#ffe8a0";
+  context.lineWidth = 1.7;
+  context.beginPath();
+  context.moveTo(-10, -22);
+  context.bezierCurveTo(-19, -29, -18, -9, -5, -4);
+  context.lineTo(-4, 8);
+  context.quadraticCurveTo(-8, 14, -13, 18);
+  context.lineTo(13, 18);
+  context.quadraticCurveTo(8, 14, 4, 8);
+  context.lineTo(5, -4);
+  context.bezierCurveTo(18, -9, 19, -29, 10, -22);
+  context.quadraticCurveTo(5, -19, 0, -19);
+  context.quadraticCurveTo(-5, -19, -10, -22);
+  context.closePath();
+  context.fill();
+  context.stroke();
+  context.fillStyle = "#c19a37";
+  context.fillRect(-5, 15, 10, 8);
+  context.fillStyle = "#26392f";
+  context.fillRect(-12, 22, 24, 6);
+  context.fillStyle = "#efe2ae";
+  context.beginPath();
+  context.arc(0, -12, 4, 0, Math.PI * 2);
+  context.fill();
+  context.restore();
+}
+
+function drawExhibit(exhibit) {
+  const basePoint = exhibitWorldPoint(exhibit);
+  if (!basePoint) return;
+  const base = projectWorldPoint(basePoint.x, basePoint.y);
+  if (!base || base.x < -250 || base.x > game.width + 250) return;
+  const scale = clamp(base.scale, .48, 1.55);
+  const width = 180 * scale;
+  const height = 104 * scale;
+  const postHeight = 48 * scale;
+  const x = base.x;
+  const y = base.y - postHeight;
+  const artWidth = width * .38;
+  const titleFont = clamp(10 * scale, 7, 15);
+  const kickerFont = clamp(6.5 * scale, 5, 9);
+  context.save();
+  context.fillStyle = "rgba(20, 31, 24, .25)";
+  context.fillRect(x - width * .4, base.y - 1, width * .8, Math.max(2, scale * 3));
+  context.fillStyle = "#4c4a38";
+  context.fillRect(x - width * .34, y + height * .7, Math.max(2, 4 * scale), postHeight * .48);
+  context.fillRect(x + width * .28, y + height * .7, Math.max(2, 4 * scale), postHeight * .48);
+  context.fillStyle = "#18251c";
+  context.fillRect(x - width / 2, y, width, height);
+  context.fillStyle = exhibit.color;
+  context.fillRect(x - width / 2, y, width, Math.max(3, 4 * scale));
+  context.strokeStyle = `${exhibit.color}b8`;
+  context.lineWidth = Math.max(1, scale);
+  context.strokeRect(x - width / 2, y, width, height);
+  drawBillboardArtwork(exhibit, x - width / 2 + 7 * scale, y + 11 * scale, artWidth, height - 20 * scale);
+  const textX = x - width / 2 + artWidth + 15 * scale;
+  const textWidth = width - artWidth - 22 * scale;
+  context.textAlign = "left";
+  context.textBaseline = "middle";
+  context.fillStyle = exhibit.color;
+  context.font = `500 ${kickerFont}px 'DM Mono', monospace`;
+  context.fillText(exhibit.kicker, textX, y + 20 * scale, textWidth);
+  context.fillStyle = "#f4f0df";
+  context.font = `600 ${titleFont}px 'DM Sans', sans-serif`;
+  context.fillText(exhibit.title, textX, y + 43 * scale, textWidth);
+  context.fillStyle = "#b8c5b5";
+  context.font = `400 ${kickerFont}px 'DM Mono', monospace`;
+  context.fillText("SLOW DOWN · E TO READ", textX, y + 72 * scale, textWidth);
+  context.restore();
+
+  if (exhibit.visual === "world-cup-trophy") {
+    const trophyPoint = projectWorldPoint(
+      basePoint.x,
+    basePoint.y + exhibit.side * 58,
+    );
+    if (trophyPoint) {
+      const trophyScale = clamp(trophyPoint.scale * 1.65, .48, 1.8);
+      context.save();
+      context.fillStyle = "rgba(29, 40, 26, .23)";
+      context.beginPath();
+      context.ellipse(trophyPoint.x, trophyPoint.y, 19 * trophyScale, 6 * trophyScale, 0, 0, Math.PI * 2);
+      context.fill();
+      drawWorldCupTrophy(trophyPoint.x, trophyPoint.y - 35 * trophyScale, trophyScale);
+      context.restore();
+    }
+  }
 }
 
 function drawDistrict(district) {
@@ -1136,6 +1478,12 @@ function handleRoute() {
     openProject(projectId, hash);
     return;
   }
+  if (hash.startsWith("experience/")) {
+    const experienceId = hash.slice("experience/".length);
+    showPortfolio(false);
+    openExperienceItem(experienceId, hash);
+    return;
+  }
   if (["experience", "education", "projects", "skills", "contact"].includes(hash)) {
     showPortfolio(false);
     document.getElementById(hash)?.scrollIntoView({ behavior: "auto", block: "start" });
@@ -1194,6 +1542,10 @@ function installEvents() {
   });
   document.querySelectorAll("[data-open-section]").forEach((button) => {
     button.addEventListener("click", () => openSection(button.dataset.openSection));
+  });
+  document.querySelector(".skip-link").addEventListener("click", (event) => {
+    event.preventDefault();
+    goToPortfolioSection("about");
   });
   document.querySelectorAll('.primary-nav a[href^="#"]').forEach((link) => {
     link.addEventListener("click", (event) => {

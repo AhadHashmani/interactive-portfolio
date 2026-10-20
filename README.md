@@ -1,6 +1,6 @@
 # Portfolio Drive
 
-A responsive, resume-backed portfolio for Ahad Hashmani with an optional behind-the-car driving view and a conventional HTML portfolio. The compact road network uses roadside district signs, and the same destinations remain available from the interface. Built with HTML, CSS, Canvas 2D, and vanilla JavaScript modules; no framework or runtime dependency is required.
+A responsive, resume-backed portfolio for Ahad Hashmani with an optional behind-the-car driving view and a conventional HTML portfolio. Five named, color-accented routes lead to distinct portfolio districts. The Experience Highway has an illustrated billboard for every role, including a custom World Cup trophy scene at FIFA; the Project Expressway has illustrated project landmarks. Each exhibit opens its matching resume-backed detail panel when approached slowly. The same destinations remain available from the interface. Built with HTML, CSS, Canvas 2D, and vanilla JavaScript modules; no framework or runtime dependency is required.
 
 ## Run locally
 
@@ -47,7 +47,7 @@ Change the `DRIVE` configuration at the top of `src/main.js`. It contains world 
 
 ## Assets and deployment
 
-The map is drawn from original Canvas primitives; there are no third-party images, fonts are loaded from Google Fonts with system fallbacks, and no external project screenshots are bundled. Deploy the project root to any static host that supports ES modules and serves `index.html` as the entry page. Keep all links relative to this root.
+The map, billboards, employer monograms, trophy, and project illustrations are original Canvas/CSS drawings; employer monograms are not official logos. There are no third-party images and no external project screenshots are bundled. Fonts are loaded from Google Fonts with system fallbacks. Deploy the project root to any static host that supports ES modules and serves `index.html` as the entry page. Keep all links relative to this root.
 
 ## Source and privacy notes
 
