@@ -528,6 +528,7 @@ function showDrive(showWelcome = false) {
     driveHud.hidden = true;
     driveHelp.hidden = true;
   }
+  updateTouchControls();
   window.scrollTo({ top: 0, behavior: reducedMotion.matches ? "auto" : "smooth" });
 }
 
@@ -547,6 +548,7 @@ function driveToDistrict(districtId) {
   welcomeCard.hidden = true;
   driveHud.hidden = false;
   driveHelp.hidden = false;
+  updateTouchControls();
   game.visited.add(districtId);
   safeStorage.set("portfolio-drive-visited", [...game.visited].join(","));
   clearInput();
@@ -1395,11 +1397,17 @@ function setDriving(active) {
   welcomeCard.hidden = active;
   driveHud.hidden = !active;
   driveHelp.hidden = !active;
+  updateTouchControls();
   if (active) {
     game.lastFrame = 0;
     document.querySelector("#resetCar").focus({ preventScroll: true });
     announce("Driving started. Use WASD or the arrow keys.");
   }
+}
+
+function updateTouchControls() {
+  const controls = document.querySelector("#touchControls");
+  controls.hidden = !isMobile.matches || !game.driving;
 }
 
 function handleKeyDown(event) {
@@ -1430,7 +1438,7 @@ function handleKeyUp(event) {
 
 function configureTouchControls() {
   const controls = document.querySelector("#touchControls");
-  controls.hidden = !isMobile.matches;
+  updateTouchControls();
   controls.querySelectorAll("[data-control]").forEach((button) => {
     button.addEventListener("pointerdown", (event) => {
       if (!game.driving || game.dialogOpen) return;
@@ -1444,7 +1452,7 @@ function configureTouchControls() {
     button.addEventListener("lostpointercapture", release);
   });
   isMobile.addEventListener("change", () => {
-    controls.hidden = !isMobile.matches;
+    updateTouchControls();
   });
 }
 
@@ -1503,9 +1511,6 @@ function handleRoute() {
 function installEvents() {
   document.querySelector("#startDriving").addEventListener("click", () => {
     setDriving(true);
-    welcomeCard.hidden = true;
-    driveHud.hidden = false;
-    driveHelp.hidden = false;
   });
   document.querySelector("#welcomePortfolio").addEventListener("click", () => {
     showPortfolio(false);

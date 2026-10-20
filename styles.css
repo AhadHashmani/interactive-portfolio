@@ -120,6 +120,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--lime); outline-
 .help-steering { color: var(--lime); font-size: 16px; }
 .drive-help strong { color: var(--lime); font: 10px var(--mono); }
 .drive-help i { padding: 0 4px; color: #788476; font-style: normal; }
+.drive-help-touch { display: none; }
 .drive-help button { padding: 4px 0 4px 12px; border: 0; border-left: 1px solid var(--line); background: transparent; color: #b8c2b3; font: 8px var(--mono); cursor: pointer; }
 .drive-help button:hover { color: var(--lime); }
 .map-credit { position: absolute; right: clamp(24px, 5vw, 76px); bottom: 30px; color: rgba(246, 248, 238, .76); font: 8px var(--mono); letter-spacing: .12em; text-shadow: 0 1px 6px rgba(10, 20, 12, .55); }
@@ -270,6 +271,8 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--lime); outline-
   .drive-hud { top: 153px; left: 18px; min-height: 48px; }
   .interaction-prompt { bottom: 190px; min-width: min(300px, calc(100% - 30px)); }
   .drive-help { bottom: 149px; font-size: 8px; }
+  .drive-help-keyboard { display: none; }
+  .drive-help-touch { display: inline; }
   .drive-help button { display: none; }
   .touch-controls { position: absolute; z-index: 5; right: 18px; bottom: 22px; left: 18px; display: flex; align-items: end; justify-content: space-between; pointer-events: none; touch-action: none; }
   .touch-steering, .touch-pedals { display: flex; gap: 8px; }
