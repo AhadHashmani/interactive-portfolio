@@ -11,11 +11,11 @@ export const profile = {
 };
 
 export const districts = [
-  { id: "experience", title: "Experience Highway", shortTitle: "Experience", number: "01", x: 1770, y: 770, color: "#b9e68a", tagline: "Roles, teams & real-world problem solving" },
-  { id: "education", title: "Education Avenue", shortTitle: "Education", number: "02", x: 1180, y: 270, color: "#8bd8ba", tagline: "A foundation built in Austin" },
-  { id: "projects", title: "Project Expressway", shortTitle: "Projects", number: "03", x: 520, y: 770, color: "#d4a5f5", tagline: "Experiments, prototypes & technical work" },
-  { id: "skills", title: "Skills Garage", shortTitle: "Skills", number: "04", x: 1180, y: 1260, color: "#efbd76", tagline: "Tools connected to evidence" },
-  { id: "contact", title: "Contact Pit Stop", shortTitle: "Contact", number: "05", x: 1850, y: 1270, color: "#8bd8e2", tagline: "Open a conversation" },
+  { id: "experience", title: "Experience Highway", shortTitle: "Experience", number: "01", x: 1240, y: 510, signX: 1090, signY: 425, color: "#b9e68a", tagline: "Roles, teams & real-world problem solving" },
+  { id: "education", title: "Education Avenue", shortTitle: "Education", number: "02", x: 780, y: 205, signX: 810, signY: 285, color: "#8bd8ba", tagline: "A foundation built in Austin" },
+  { id: "projects", title: "Project Expressway", shortTitle: "Projects", number: "03", x: 315, y: 510, signX: 445, signY: 425, color: "#d4a5f5", tagline: "Experiments, prototypes & technical work" },
+  { id: "skills", title: "Skills Garage", shortTitle: "Skills", number: "04", x: 780, y: 840, signX: 905, signY: 755, color: "#efbd76", tagline: "Tools connected to evidence" },
+  { id: "contact", title: "Contact Pit Stop", shortTitle: "Contact", number: "05", x: 1240, y: 840, signX: 1330, signY: 755, color: "#8bd8e2", tagline: "Open a conversation" },
 ];
 
 export const experience = [

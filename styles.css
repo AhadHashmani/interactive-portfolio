@@ -99,7 +99,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--lime); outline-
 .welcome-foot > span:last-child { margin-left: 4px; }
 .welcome-divider { padding: 0 5px; color: #667267; }
 
-.drive-hud { position: absolute; top: 112px; left: clamp(24px, 5vw, 76px); z-index: 5; display: flex; align-items: center; gap: 17px; min-height: 54px; padding: 8px 11px 8px 15px; background: rgba(17, 26, 19, .91); border: 1px solid rgba(240, 245, 230, .18); box-shadow: 0 12px 34px rgba(12, 24, 15, .2); backdrop-filter: blur(12px); }
+.drive-hud { position: absolute; top: 138px; left: clamp(24px, 5vw, 76px); z-index: 5; display: flex; align-items: center; gap: 17px; min-height: 54px; padding: 8px 11px 8px 15px; background: rgba(17, 26, 19, .91); border: 1px solid rgba(240, 245, 230, .18); box-shadow: 0 12px 34px rgba(12, 24, 15, .2); backdrop-filter: blur(12px); }
 .hud-speed { display: flex; flex-direction: column; color: var(--lime); font: 19px var(--mono); line-height: 1; }
 .speed-unit { margin-top: 4px; color: #99a596; font: 7px var(--mono); letter-spacing: .1em; }
 .hud-rule { height: 29px; width: 1px; background: rgba(242, 246, 234, .2); }
@@ -262,7 +262,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--lime); outline-
   .map-legend { display: none; }
   .world-label { display: none; }
   .map-credit { right: 17px; bottom: 18px; font-size: 7px; }
-  .drive-hud { top: 117px; left: 18px; min-height: 48px; }
+  .drive-hud { top: 153px; left: 18px; min-height: 48px; }
   .interaction-prompt { bottom: 190px; min-width: min(300px, calc(100% - 30px)); }
   .drive-help { bottom: 149px; font-size: 8px; }
   .drive-help button { display: none; }

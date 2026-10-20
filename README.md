@@ -1,6 +1,6 @@
 # Portfolio Drive
 
-A responsive, resume-backed portfolio for Ahad Hashmani with an optional top-down driving layer and a conventional HTML portfolio. Built with HTML, CSS, Canvas 2D, and vanilla JavaScript modules; no framework or runtime dependency is required.
+A responsive, resume-backed portfolio for Ahad Hashmani with an optional behind-the-car driving view and a conventional HTML portfolio. The compact road network uses roadside district signs, and the same destinations remain available from the interface. Built with HTML, CSS, Canvas 2D, and vanilla JavaScript modules; no framework or runtime dependency is required.
 
 ## Run locally
 
@@ -57,4 +57,4 @@ The resume source includes a personal phone number and email. Neither is exposed
 
 ## Validation and known limitations
 
-The static source is designed for modern browsers with Canvas 2D, ES modules, and native `<dialog>`. Driving and core navigation can be tested with keyboard, pointer, and touch controls. No browser matrix, mobile device, assistive technology, or performance benchmark has been claimed as tested by this initial implementation. The first release uses a compact illustrative map, simple obstacle collisions, and an optional driving layer; the full portfolio remains available without driving.
+Verified in the integrated Chromium browser at 1440×900 and 390×844: portfolio navigation, project archive and detail links, keyboard acceleration, touch-pointer acceleration, district prompts, and the compact behind-the-car scene. The animation loop sampled about 60 FPS at both viewport sizes; this is a quick implementation check, not a formal performance benchmark. Firefox, Safari, physical mobile devices, and assistive technology were not tested. The world is illustrative and uses simple obstacle collisions; all professional content remains available without driving.

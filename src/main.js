@@ -9,40 +9,44 @@ import {
 } from "./content.js";
 
 const DRIVE = {
-  worldWidth: 2400,
-  worldHeight: 1600,
-  maxForwardSpeed: 285,
-  maxReverseSpeed: 112,
-  acceleration: 240,
-  braking: 570,
-  coast: 105,
-  maxSteering: 2.35,
+  worldWidth: 1560,
+  worldHeight: 1080,
+  cameraDistance: 160,
+  cameraHeight: 125,
+  roadWidth: 174,
+  horizon: 0.28,
+  focalLength: 0.72,
+  maxForwardSpeed: 220,
+  maxReverseSpeed: 92,
+  acceleration: 230,
+  braking: 530,
+  coast: 110,
+  maxSteering: 2.1,
   offRoadSpeedRatio: 0.58,
-  interactionRadius: 140,
-  interactionExitRadius: 180,
-  interactionSpeed: 52,
-  cameraSmoothing: 7.5,
+  interactionRadius: 112,
+  interactionExitRadius: 148,
+  interactionSpeed: 44,
+  cameraSmoothing: 8.5,
   fixedStep: 1 / 60,
 };
 
 const ROAD_SEGMENTS = [
-  { x1: 0, y1: 770, x2: DRIVE.worldWidth, y2: 770 },
-  { x1: 1180, y1: 0, x2: 1180, y2: DRIVE.worldHeight },
-  { x1: 1180, y1: 1260, x2: DRIVE.worldWidth, y2: 1260 },
-  { x1: 1850, y1: 770, x2: 1850, y2: 1260 },
+  { x1: 0, y1: 510, x2: DRIVE.worldWidth, y2: 510 },
+  { x1: 780, y1: 0, x2: 780, y2: DRIVE.worldHeight },
+  { x1: 780, y1: 840, x2: DRIVE.worldWidth, y2: 840 },
+  { x1: 1190, y1: 510, x2: 1190, y2: 840 },
 ];
 
 const BUILDINGS = [
-  { x: 940, y: 208, w: 145, h: 112, color: "#c9d6b0", label: "CAMPUS HALL" },
-  { x: 1300, y: 260, w: 116, h: 88, color: "#b6c8a5", label: "STUDY HOUSE" },
-  { x: 324, y: 560, w: 128, h: 103, color: "#d4c8a7", label: "RESEARCH LAB" },
-  { x: 470, y: 518, w: 146, h: 104, color: "#c3d1ae", label: "DATA STUDIO" },
-  { x: 1535, y: 561, w: 133, h: 112, color: "#d6d0b8", label: "OFFICE 01" },
-  { x: 1717, y: 535, w: 138, h: 113, color: "#b8c8ad", label: "OFFICE 02" },
-  { x: 943, y: 1322, w: 143, h: 94, color: "#dcc7a1", label: "WORKSHOP" },
-  { x: 1286, y: 1350, w: 149, h: 93, color: "#c9b991", label: "TOOL SHED" },
-  { x: 2005, y: 1307, w: 137, h: 110, color: "#c1d0b5", label: "PIT STOP" },
-  { x: 2050, y: 946, w: 122, h: 98, color: "#c9d1b5", label: "COMMUNITY HALL" },
+  { x: 575, y: 76, w: 126, d: 100, h: 86, color: "#c9d6b0", label: "CAMPUS HALL" },
+  { x: 878, y: 84, w: 112, d: 86, h: 72, color: "#b6c8a5", label: "STUDY HOUSE" },
+  { x: 154, y: 293, w: 112, d: 88, h: 74, color: "#d4c8a7", label: "RESEARCH LAB" },
+  { x: 324, y: 263, w: 128, d: 92, h: 82, color: "#c3d1ae", label: "DATA STUDIO" },
+  { x: 1260, y: 288, w: 124, d: 92, h: 84, color: "#d6d0b8", label: "OFFICE 01" },
+  { x: 1293, y: 895, w: 128, d: 100, h: 82, color: "#c1d0b5", label: "PIT STOP" },
+  { x: 540, y: 916, w: 122, d: 92, h: 80, color: "#dcc7a1", label: "WORKSHOP" },
+  { x: 842, y: 930, w: 128, d: 94, h: 78, color: "#c9b991", label: "TOOL SHED" },
+  { x: 1020, y: 916, w: 116, d: 90, h: 76, color: "#c9d1b5", label: "COMMUNITY HALL" },
 ];
 
 const canvas = document.querySelector("#worldCanvas");
@@ -71,17 +75,28 @@ const game = {
   activePrompt: null,
   previousPrompt: null,
   district: null,
-  car: { x: 1180, y: 770, heading: -Math.PI / 2, speed: 0 },
-  camera: { x: 1180, y: 770 },
+  car: { x: 780, y: 510, heading: -Math.PI / 2, speed: 0, visualSteer: 0, braking: false },
+  camera: { x: 780, y: 510, heading: -Math.PI / 2 },
   keys: new Set(),
   pointers: new Map(),
   visited: new Set(),
+};
+
+const projection = {
+  forwardX: 0,
+  forwardY: -1,
+  rightX: 1,
+  rightY: 0,
+  cameraX: 0,
+  cameraY: 0,
+  focal: 0,
 };
 
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 const isMobile = window.matchMedia("(max-width: 700px), (pointer: coarse)");
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const lerp = (from, to, amount) => from + (to - from) * amount;
+const lerpAngle = (from, to, amount) => from + Math.atan2(Math.sin(to - from), Math.cos(to - from)) * amount;
 const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 const safeStorage = {
   get(key) {
@@ -129,6 +144,10 @@ function renderExperience() {
     main.append(bullets, makeTagRow(item.tools));
     card.append(meta, main);
     list.append(card);
+  });
+  document.querySelector(".skip-link").addEventListener("click", (event) => {
+    event.preventDefault();
+    goToPortfolioSection("about");
   });
 }
 
@@ -258,6 +277,8 @@ function openDialog(contentId, title, render, route = contentId) {
   dialog.setAttribute("aria-labelledby", heading ? "dialogTitle" : "dialogTitle");
   if (heading) {
     heading.id = "dialogTitle";
+    heading.tabIndex = -1;
+    heading.focus({ preventScroll: true });
   } else {
     const fallbackHeading = element("h2", "screen-reader-only", title);
     fallbackHeading.id = "dialogTitle";
@@ -477,8 +498,10 @@ function driveToDistrict(districtId) {
   game.car.y = district.y;
   game.car.speed = 0;
   game.car.heading = -Math.PI / 2;
+  game.car.visualSteer = 0;
   game.camera.x = district.x;
   game.camera.y = district.y;
+  game.camera.heading = game.car.heading;
   game.driving = true;
   welcomeCard.hidden = true;
   driveHud.hidden = false;
@@ -490,12 +513,15 @@ function driveToDistrict(districtId) {
 }
 
 function resetCar() {
-  game.car.x = 1180;
-  game.car.y = 770;
+  game.car.x = 780;
+  game.car.y = 510;
   game.car.heading = -Math.PI / 2;
   game.car.speed = 0;
+  game.car.visualSteer = 0;
+  game.car.braking = false;
   game.camera.x = game.car.x;
   game.camera.y = game.car.y;
+  game.camera.heading = game.car.heading;
   game.activePrompt = null;
   clearInput();
   if (game.driving) announce("Car reset to Welcome Plaza");
@@ -545,6 +571,8 @@ function updateCar(dt) {
 
   if (!onRoad && Math.abs(car.speed) > limit) car.speed = Math.sign(car.speed) * limit;
   const steerInput = Number(controls.right) - Number(controls.left);
+  car.visualSteer = steerInput;
+  car.braking = controls.brake && car.speed > 0;
   if (steerInput && Math.abs(car.speed) > 5) {
     const speedFactor = 0.24 + 0.76 * Math.min(Math.abs(car.speed) / 150, 1);
     car.heading += steerInput * DRIVE.maxSteering * speedFactor * Math.sign(car.speed) * dt;
@@ -565,8 +593,10 @@ function updateCar(dt) {
     car.y = nextY;
   }
 
-  game.camera.x = lerp(game.camera.x, car.x, reducedMotion.matches ? 1 : 1 - Math.exp(-DRIVE.cameraSmoothing * dt));
-  game.camera.y = lerp(game.camera.y, car.y, reducedMotion.matches ? 1 : 1 - Math.exp(-DRIVE.cameraSmoothing * dt));
+  const cameraBlend = reducedMotion.matches ? 1 : 1 - Math.exp(-DRIVE.cameraSmoothing * dt);
+  game.camera.x = lerp(game.camera.x, car.x, cameraBlend);
+  game.camera.y = lerp(game.camera.y, car.y, cameraBlend);
+  game.camera.heading = lerpAngle(game.camera.heading, car.heading, cameraBlend);
   updateInteraction();
 }
 
@@ -574,7 +604,7 @@ function collidingBuildings(x, y) {
   const radius = 13;
   for (const building of BUILDINGS) {
     const hitX = x + radius > building.x && x - radius < building.x + building.w;
-    const hitY = y + radius > building.y && y - radius < building.y + building.h;
+    const hitY = y + radius > building.y && y - radius < building.y + building.d;
     if (hitX && hitY) return true;
   }
   return false;
@@ -629,246 +659,355 @@ function resizeCanvas() {
   render();
 }
 
-function worldToScreen(x, y) {
+function projectWorldPoint(x, y) {
+  const relativeX = x - projection.cameraX;
+  const relativeY = y - projection.cameraY;
+  const depth = relativeX * projection.forwardX + relativeY * projection.forwardY;
+  if (depth < 8 || depth > 1800) return null;
+  const lateral = relativeX * projection.rightX + relativeY * projection.rightY;
+  const scale = projection.focal / depth;
   return {
-    x: x - game.camera.x + game.width / 2,
-    y: y - game.camera.y + game.height / 2,
+    x: game.width / 2 + lateral * scale,
+    y: game.height * DRIVE.horizon + projection.focal * DRIVE.cameraHeight / depth,
+    depth,
+    scale,
   };
 }
 
-function visible(x, y, margin = 200) {
-  const point = worldToScreen(x, y);
-  return point.x > -margin && point.x < game.width + margin && point.y > -margin && point.y < game.height + margin;
+function prepareProjection() {
+  projection.forwardX = Math.cos(game.camera.heading);
+  projection.forwardY = Math.sin(game.camera.heading);
+  projection.rightX = -projection.forwardY;
+  projection.rightY = projection.forwardX;
+  projection.cameraX = game.camera.x - projection.forwardX * DRIVE.cameraDistance;
+  projection.cameraY = game.camera.y - projection.forwardY * DRIVE.cameraDistance;
+  projection.focal = game.height * DRIVE.focalLength;
 }
 
 function drawWorld() {
-  context.fillStyle = "#718d67";
-  context.fillRect(0, 0, game.width, game.height);
-  drawGroundPatches();
+  const sky = context.createLinearGradient(0, 0, 0, game.height * .45);
+  sky.addColorStop(0, "#d6d7bb");
+  sky.addColorStop(1, "#91a77c");
+  context.fillStyle = sky;
+  context.fillRect(0, 0, game.width, game.height * .47);
+  const ground = context.createLinearGradient(0, game.height * DRIVE.horizon, 0, game.height);
+  ground.addColorStop(0, "#82986d");
+  ground.addColorStop(1, "#637d5a");
+  context.fillStyle = ground;
+  context.fillRect(0, game.height * DRIVE.horizon, game.width, game.height * (1 - DRIVE.horizon));
+  drawDistantLandscape();
   drawRoads();
-  drawCrossings();
   drawTrees();
   BUILDINGS.forEach(drawBuilding);
   districts.forEach(drawDistrict);
   drawPlayerCar();
 }
 
-function drawGroundPatches() {
+function drawDistantLandscape() {
+  const horizon = game.height * DRIVE.horizon;
   context.save();
-  const patches = [
-    [280, 280, 205, 115, "#80976d"],
-    [720, 1080, 220, 170, "#657f5d"],
-    [2100, 310, 230, 150, "#819871"],
-    [2090, 1110, 185, 170, "#69845d"],
-    [620, 250, 170, 100, "#778f68"],
-    [1550, 1040, 210, 130, "#7d946b"],
-    [1480, 230, 155, 110, "#657e5e"],
-  ];
-  for (const [x, y, rx, ry, color] of patches) {
-    if (!visible(x, y, Math.max(rx, ry))) continue;
-    const point = worldToScreen(x, y);
-    context.fillStyle = color;
-    context.beginPath();
-    context.ellipse(point.x, point.y, rx, ry, 0, 0, Math.PI * 2);
-    context.fill();
+  context.fillStyle = "rgba(96, 121, 80, .35)";
+  context.beginPath();
+  context.moveTo(0, horizon + 18);
+  for (let x = 0; x <= game.width + 50; x += 55) {
+    const y = horizon + 4 + Math.sin(x * .013) * 8 + Math.cos(x * .027) * 4;
+    context.lineTo(x, y);
   }
+  context.lineTo(game.width, horizon + 42);
+  context.lineTo(0, horizon + 42);
+  context.closePath();
+  context.fill();
   context.restore();
+}
+
+function roadPoint(segment, along, offset = 0) {
+  const dx = segment.x2 - segment.x1;
+  const dy = segment.y2 - segment.y1;
+  const length = Math.hypot(dx, dy);
+  const normalX = -dy / length;
+  const normalY = dx / length;
+  return {
+    x: segment.x1 + dx / length * along + normalX * offset,
+    y: segment.y1 + dy / length * along + normalY * offset,
+  };
+}
+
+function drawRoadRibbon(segment, halfWidth, color) {
+  const dx = segment.x2 - segment.x1;
+  const dy = segment.y2 - segment.y1;
+  const length = Math.hypot(dx, dy);
+  const startDepth = (segment.x1 - projection.cameraX) * projection.forwardX + (segment.y1 - projection.cameraY) * projection.forwardY;
+  const endDepth = (segment.x2 - projection.cameraX) * projection.forwardX + (segment.y2 - projection.cameraY) * projection.forwardY;
+  const depthDelta = endDepth - startDepth;
+  let startAlong = 0;
+  let endAlong = length;
+  const nearDepth = DRIVE.roadWidth * .72;
+  if (Math.abs(depthDelta) < .001) {
+    if (startDepth < nearDepth || startDepth > 1700) return;
+  } else {
+    const nearAlong = (nearDepth - startDepth) / depthDelta * length;
+    const farAlong = (1700 - startDepth) / depthDelta * length;
+    startAlong = Math.max(0, Math.min(nearAlong, farAlong));
+    endAlong = Math.min(length, Math.max(nearAlong, farAlong));
+    if (startAlong >= endAlong) return;
+  }
+  const leftStart = roadPoint(segment, startAlong, -halfWidth);
+  const leftEnd = roadPoint(segment, endAlong, -halfWidth);
+  const rightEnd = roadPoint(segment, endAlong, halfWidth);
+  const rightStart = roadPoint(segment, startAlong, halfWidth);
+  const points = [
+    projectWorldPoint(leftStart.x, leftStart.y),
+    projectWorldPoint(leftEnd.x, leftEnd.y),
+    projectWorldPoint(rightEnd.x, rightEnd.y),
+    projectWorldPoint(rightStart.x, rightStart.y),
+  ];
+  if (points.some((point) => !point)) return;
+  context.fillStyle = color;
+  context.beginPath();
+  context.moveTo(points[0].x, points[0].y);
+  points.slice(1).forEach((point) => context.lineTo(point.x, point.y));
+  context.closePath();
+  context.fill();
+}
+
+function drawRoadMarkings() {
+  for (const segment of ROAD_SEGMENTS) {
+    const length = Math.hypot(segment.x2 - segment.x1, segment.y2 - segment.y1);
+    for (let along = 0; along < length; along += 126) {
+      const dashEnd = Math.min(along + 48, length);
+      const centerStart = roadPoint(segment, along);
+      const centerEnd = roadPoint(segment, dashEnd);
+      const start = projectWorldPoint(centerStart.x, centerStart.y);
+      const end = projectWorldPoint(centerEnd.x, centerEnd.y);
+      if (!start || !end) continue;
+      context.beginPath();
+      context.moveTo(start.x, start.y);
+      context.lineTo(end.x, end.y);
+      context.strokeStyle = "rgba(224, 204, 133, .88)";
+      context.lineWidth = clamp((start.scale + end.scale) * 1.3, 1, 7);
+      context.stroke();
+
+      for (const laneOffset of [-DRIVE.roadWidth * .35, DRIVE.roadWidth * .35]) {
+        const laneStart = roadPoint(segment, along, laneOffset);
+        const laneEnd = roadPoint(segment, dashEnd, laneOffset);
+        const laneA = projectWorldPoint(laneStart.x, laneStart.y);
+        const laneB = projectWorldPoint(laneEnd.x, laneEnd.y);
+        if (!laneA || !laneB) continue;
+        context.beginPath();
+        context.moveTo(laneA.x, laneA.y);
+        context.lineTo(laneB.x, laneB.y);
+        context.strokeStyle = "rgba(238, 239, 219, .68)";
+        context.lineWidth = clamp((laneA.scale + laneB.scale) * .8, .8, 5);
+        context.stroke();
+      }
+    }
+  }
 }
 
 function drawRoads() {
   context.save();
-  context.lineCap = "round";
-  for (const segment of ROAD_SEGMENTS) {
-    const start = worldToScreen(segment.x1, segment.y1);
-    const end = worldToScreen(segment.x2, segment.y2);
-    context.beginPath();
-    context.moveTo(start.x, start.y);
-    context.lineTo(end.x, end.y);
-    context.strokeStyle = "#c8bea0";
-    context.lineWidth = 190;
-    context.stroke();
-    context.strokeStyle = "#4a554a";
-    context.lineWidth = 174;
-    context.stroke();
-    context.strokeStyle = "#53604f";
-    context.lineWidth = 156;
-    context.stroke();
-    context.setLineDash([16, 17]);
-    context.lineWidth = 2;
-    context.strokeStyle = "rgba(232, 233, 211, .43)";
-    context.stroke();
-    context.setLineDash([]);
-    context.lineWidth = 2;
-    context.strokeStyle = "rgba(223, 202, 129, .48)";
-    context.beginPath();
-    context.moveTo(start.x, start.y);
-    context.lineTo(end.x, end.y);
-    if (segment.y1 === segment.y2) {
-      context.moveTo(start.x, start.y - 70);
-      context.lineTo(end.x, end.y - 70);
-      context.moveTo(start.x, start.y + 70);
-      context.lineTo(end.x, end.y + 70);
-    } else {
-      context.moveTo(start.x - 70, start.y);
-      context.lineTo(end.x - 70, end.y);
-      context.moveTo(start.x + 70, start.y);
-      context.lineTo(end.x + 70, end.y);
-    }
-    context.stroke();
-  }
-  context.restore();
-}
-
-function drawCrossings() {
-  context.save();
-  const crossings = [
-    [1180, 770],
-    [1850, 770],
-    [1180, 1260],
-    [1850, 1260],
-  ];
-  for (const [x, y] of crossings) {
-    const point = worldToScreen(x, y);
-    if (!visible(x, y, 120)) continue;
-    context.fillStyle = "rgba(240, 236, 211, .66)";
-    for (let stripe = -3; stripe <= 3; stripe += 1) {
-      context.fillRect(point.x - 84 + stripe * 24, point.y - 91, 12, 12);
-      context.fillRect(point.x - 84 + stripe * 24, point.y + 78, 12, 12);
-    }
-  }
+  for (const segment of ROAD_SEGMENTS) drawRoadRibbon(segment, DRIVE.roadWidth * .58, "#bcb598");
+  for (const segment of ROAD_SEGMENTS) drawRoadRibbon(segment, DRIVE.roadWidth * .5, "#48544b");
+  for (const segment of ROAD_SEGMENTS) drawRoadRibbon(segment, DRIVE.roadWidth * .45, "#505d52");
+  drawRoadMarkings();
   context.restore();
 }
 
 function drawTrees() {
-  context.save();
-  for (let x = 85; x < DRIVE.worldWidth; x += 95) {
-    for (let y = 85; y < DRIVE.worldHeight; y += 103) {
-      const offsetX = Math.sin(x * 0.017 + y * 0.011) * 25;
-      const offsetY = Math.cos(x * 0.013 - y * 0.015) * 22;
-      const tx = x + offsetX;
-      const ty = y + offsetY;
-      if (ROAD_SEGMENTS.some((segment) => distanceToSegment(tx, ty, segment) < 135)) continue;
-      if (BUILDINGS.some((building) => tx > building.x - 30 && tx < building.x + building.w + 30 && ty > building.y - 35 && ty < building.y + building.h + 35)) continue;
-      if (!visible(tx, ty, 30)) continue;
-      drawTree(tx, ty, 8 + ((x + y) % 5));
+  for (let x = 45; x < DRIVE.worldWidth; x += 120) {
+    for (let y = 40; y < DRIVE.worldHeight; y += 125) {
+      const tx = x + Math.sin(x * .017 + y * .011) * 20;
+      const ty = y + Math.cos(x * .013 - y * .015) * 18;
+      if (ROAD_SEGMENTS.some((segment) => distanceToSegment(tx, ty, segment) < DRIVE.roadWidth * .65)) continue;
+      if (BUILDINGS.some((building) => tx > building.x - 22 && tx < building.x + building.w + 22 && ty > building.y - 22 && ty < building.y + building.d + 22)) continue;
+      drawTree(tx, ty, 10 + ((x + y) % 5));
     }
   }
-  context.restore();
 }
 
 function drawTree(x, y, radius) {
-  const point = worldToScreen(x, y);
-  context.fillStyle = "rgba(22, 38, 23, .23)";
+  const base = projectWorldPoint(x, y);
+  if (!base || base.x < -70 || base.x > game.width + 70) return;
+  const size = clamp(radius * base.scale, 2, 54);
+  const trunk = clamp(size * 1.8, 3, 62);
+  context.fillStyle = "rgba(29, 44, 27, .25)";
   context.beginPath();
-  context.ellipse(point.x + 4, point.y + 6, radius * 1.25, radius, 0, 0, Math.PI * 2);
+  context.ellipse(base.x + size * .2, base.y, size * .9, size * .33, 0, 0, Math.PI * 2);
   context.fill();
-  context.fillStyle = "#506f48";
+  context.fillStyle = "#5e5740";
+  context.fillRect(base.x - size * .12, base.y - trunk, size * .24, trunk);
+  context.fillStyle = "#476b45";
   context.beginPath();
-  context.arc(point.x, point.y, radius + 2, 0, Math.PI * 2);
+  context.ellipse(base.x, base.y - trunk, size, size * 1.1, 0, 0, Math.PI * 2);
   context.fill();
-  context.fillStyle = "#829b68";
+  context.fillStyle = "#87a36d";
   context.beginPath();
-  context.arc(point.x - 2, point.y - 3, radius * .69, 0, Math.PI * 2);
+  context.ellipse(base.x - size * .2, base.y - trunk - size * .18, size * .63, size * .7, 0, 0, Math.PI * 2);
   context.fill();
 }
 
 function drawBuilding(building) {
-  const point = worldToScreen(building.x, building.y);
-  if (point.x + building.w < -30 || point.x > game.width + 30 || point.y + building.h < -30 || point.y > game.height + 30) return;
+  const corners = [
+    [building.x, building.y],
+    [building.x + building.w, building.y],
+    [building.x + building.w, building.y + building.d],
+    [building.x, building.y + building.d],
+  ].map(([x, y]) => projectWorldPoint(x, y));
+  if (corners.some((point) => !point || point.x < -170 || point.x > game.width + 170)) return;
+  const height = building.h;
+  const roof = corners.map((point) => ({ x: point.x, y: point.y - point.scale * height }));
   context.save();
-  context.fillStyle = "rgba(22, 32, 21, .25)";
-  context.fillRect(point.x + 8, point.y + 10, building.w, building.h);
-  context.fillStyle = "#b2a885";
-  context.fillRect(point.x - 5, point.y + building.h - 5, building.w + 10, 9);
+  context.fillStyle = "rgba(24, 36, 25, .24)";
+  context.beginPath();
+  context.moveTo(corners[0].x + 5, corners[0].y + 5);
+  corners.slice(1).forEach((point) => context.lineTo(point.x + 5, point.y + 5));
+  context.closePath();
+  context.fill();
+
+  context.fillStyle = "#817d64";
+  context.beginPath();
+  context.moveTo(corners[3].x, corners[3].y);
+  context.lineTo(corners[2].x, corners[2].y);
+  context.lineTo(roof[2].x, roof[2].y);
+  context.lineTo(roof[3].x, roof[3].y);
+  context.closePath();
+  context.fill();
+  context.fillStyle = "#aab89b";
+  context.beginPath();
+  context.moveTo(corners[0].x, corners[0].y);
+  context.lineTo(corners[3].x, corners[3].y);
+  context.lineTo(roof[3].x, roof[3].y);
+  context.lineTo(roof[0].x, roof[0].y);
+  context.closePath();
+  context.fill();
   context.fillStyle = building.color;
-  context.fillRect(point.x, point.y, building.w, building.h);
-  context.fillStyle = "#e6e0c9";
-  context.fillRect(point.x + 6, point.y + 6, building.w - 12, 6);
-  context.fillStyle = "rgba(67, 87, 66, .68)";
-  for (let wx = point.x + 17; wx < point.x + building.w - 10; wx += 25) {
-    for (let wy = point.y + 25; wy < point.y + building.h - 17; wy += 25) {
-      context.fillRect(wx, wy, 10, 12);
-    }
+  context.beginPath();
+  context.moveTo(roof[0].x, roof[0].y);
+  roof.slice(1).forEach((point) => context.lineTo(point.x, point.y));
+  context.closePath();
+  context.fill();
+  context.fillStyle = "#405748";
+  for (let index = 1; index <= 3; index += 1) {
+    const ratio = index / 4;
+    const leftX = lerp(corners[3].x, corners[2].x, ratio);
+    const leftY = lerp(corners[3].y, corners[2].y, ratio);
+    const rightX = lerp(roof[3].x, roof[2].x, ratio);
+    const rightY = lerp(roof[3].y, roof[2].y, ratio);
+    const windowHeight = Math.max(2, (leftY - rightY) * .32);
+    context.fillRect(leftX - 3, lerp(leftY, rightY, .42), 6, windowHeight);
   }
-  context.fillStyle = "#8a7858";
-  context.fillRect(point.x + building.w / 2 - 9, point.y + building.h - 23, 18, 23);
-  context.fillStyle = "rgba(38, 52, 37, .8)";
-  context.font = "7px 'DM Mono', monospace";
+  context.restore();
+}
+
+function drawSign(district) {
+  const base = projectWorldPoint(district.signX, district.signY);
+  if (!base || base.x < -170 || base.x > game.width + 170) return;
+  const scale = clamp(base.scale, .34, 1.45);
+  const boardWidth = clamp(155 * scale, 54, 176);
+  const boardHeight = clamp(55 * scale, 23, 52);
+  const postHeight = clamp(66 * scale, 20, 70);
+  const x = base.x;
+  const y = base.y - postHeight;
+  context.save();
+  context.fillStyle = "rgba(25, 37, 28, .2)";
+  context.fillRect(x - boardWidth * .47, base.y - 2, boardWidth * .94, Math.max(2, scale * 3));
+  context.fillStyle = "#4b4a39";
+  context.fillRect(x - boardWidth * .26, y + boardHeight * .72, Math.max(2, 3 * scale), postHeight * .32);
+  context.fillRect(x + boardWidth * .23, y + boardHeight * .72, Math.max(2, 3 * scale), postHeight * .32);
+  context.fillStyle = "#17241b";
+  context.fillRect(x - boardWidth / 2, y, boardWidth, boardHeight);
+  context.strokeStyle = district.color;
+  context.lineWidth = Math.max(1, scale * 1.5);
+  context.strokeRect(x - boardWidth / 2, y, boardWidth, boardHeight);
+  context.fillStyle = district.color;
   context.textAlign = "center";
-  context.fillText(building.label, point.x + building.w / 2, point.y + building.h + 20);
+  context.textBaseline = "middle";
+  context.font = `500 ${clamp(10 * scale, 7, 13)}px 'DM Mono', monospace`;
+  context.fillText(`${district.number}  ${district.shortTitle.toUpperCase()}`, x, y + boardHeight * .43, boardWidth - 8);
+  context.font = `400 ${clamp(7 * scale, 6, 9)}px 'DM Mono', monospace`;
+  context.fillStyle = "#d5dece";
+  context.fillText("E  TO EXPLORE", x, y + boardHeight * .74, boardWidth - 8);
   context.restore();
 }
 
 function drawDistrict(district) {
-  const point = worldToScreen(district.x, district.y);
-  if (!visible(district.x, district.y, 100)) return;
-  const pulse = reducedMotion.matches ? 0 : Math.sin(performance.now() / 550) * 2;
-  context.save();
-  context.fillStyle = "rgba(21, 36, 22, .2)";
-  context.beginPath();
-  context.ellipse(point.x + 2, point.y + 17, 28, 9, 0, 0, Math.PI * 2);
-  context.fill();
-  context.fillStyle = `${district.color}35`;
-  context.beginPath();
-  context.arc(point.x, point.y, 25 + pulse, 0, Math.PI * 2);
-  context.fill();
-  context.fillStyle = district.color;
-  context.beginPath();
-  context.arc(point.x, point.y, 16, 0, Math.PI * 2);
-  context.fill();
-  context.fillStyle = "#253128";
-  context.beginPath();
-  context.arc(point.x, point.y, 11, 0, Math.PI * 2);
-  context.fill();
-  context.fillStyle = district.color;
-  context.textAlign = "center";
-  context.textBaseline = "middle";
-  context.font = "9px 'DM Mono', monospace";
-  context.fillText(district.number, point.x, point.y);
-  context.textBaseline = "alphabetic";
-  context.font = "8px 'DM Mono', monospace";
-  context.fillStyle = "#f7f4e8";
-  context.fillText(district.title.toUpperCase(), point.x, point.y + 43);
-  context.restore();
+  const point = projectWorldPoint(district.x, district.y);
+  if (point && point.x > -50 && point.x < game.width + 50) {
+    const radius = clamp(point.scale * 14, 3, 24);
+    context.fillStyle = `${district.color}50`;
+    context.beginPath();
+    context.ellipse(point.x, point.y, radius * 1.6, radius * .55, 0, 0, Math.PI * 2);
+    context.fill();
+    context.fillStyle = district.color;
+    context.beginPath();
+    context.arc(point.x, point.y - radius, clamp(radius * .38, 2, 6), 0, Math.PI * 2);
+    context.fill();
+  }
+  drawSign(district);
 }
 
 function drawPlayerCar() {
-  const point = worldToScreen(game.car.x, game.car.y);
+  const width = clamp(game.width * .052, 39, 70);
+  const length = width * 1.72;
+  const x = game.width / 2;
+  const y = game.height * .82;
   context.save();
-  context.translate(point.x, point.y);
-  context.rotate(game.car.heading + Math.PI / 2);
-  context.fillStyle = "rgba(19, 27, 20, .42)";
+  context.translate(x, y);
+  context.rotate(-game.car.visualSteer * .045);
+  context.fillStyle = "rgba(16, 25, 19, .35)";
   context.beginPath();
-  context.ellipse(2, 5, 16, 24, 0, 0, Math.PI * 2);
+  context.ellipse(3, length * .2, width * .63, length * .55, 0, 0, Math.PI * 2);
   context.fill();
-  context.fillStyle = "#26352d";
-  context.fillRect(-14, -13, 5, 12);
-  context.fillRect(9, -13, 5, 12);
-  context.fillRect(-14, 7, 5, 12);
-  context.fillRect(9, 7, 5, 12);
+  context.fillStyle = "#222d27";
+  context.beginPath();
+  context.moveTo(-width * .47, -length * .23);
+  context.lineTo(-width * .53, -length * .07);
+  context.lineTo(-width * .53, length * .31);
+  context.lineTo(-width * .4, length * .4);
+  context.lineTo(width * .4, length * .4);
+  context.lineTo(width * .53, length * .31);
+  context.lineTo(width * .53, -length * .07);
+  context.lineTo(width * .47, -length * .23);
+  context.closePath();
+  context.fill();
   context.fillStyle = "#d9ed9f";
   context.beginPath();
-  context.roundRect(-11, -22, 22, 43, 6);
+  context.moveTo(-width * .39, -length * .3);
+  context.lineTo(-width * .33, -length * .52);
+  context.quadraticCurveTo(0, -length * .62, width * .33, -length * .52);
+  context.lineTo(width * .39, -length * .3);
+  context.lineTo(width * .48, length * .27);
+  context.quadraticCurveTo(0, length * .43, -width * .48, length * .27);
+  context.closePath();
   context.fill();
-  context.fillStyle = "#52675a";
+  context.fillStyle = "#354a3f";
   context.beginPath();
-  context.roundRect(-8, -12, 16, 12, 3);
+  context.moveTo(-width * .3, -length * .31);
+  context.lineTo(-width * .24, -length * .49);
+  context.quadraticCurveTo(0, -length * .55, width * .24, -length * .49);
+  context.lineTo(width * .3, -length * .31);
+  context.closePath();
   context.fill();
-  context.fillStyle = "#758b77";
+  context.fillStyle = "#748c78";
   context.beginPath();
-  context.roundRect(-8, 3, 16, 9, 2);
+  context.moveTo(-width * .28, -length * .24);
+  context.lineTo(width * .28, -length * .24);
+  context.lineTo(width * .34, length * .08);
+  context.lineTo(-width * .34, length * .08);
+  context.closePath();
   context.fill();
-  context.fillStyle = "#fff5d4";
-  context.fillRect(-8, -22, 5, 3);
-  context.fillRect(3, -22, 5, 3);
-  context.fillStyle = Math.abs(game.car.speed) > 20 && game.car.speed > 0 ? "#f07a64" : "#8a584d";
-  context.fillRect(-8, 17, 5, 3);
-  context.fillRect(3, 17, 5, 3);
+  context.fillStyle = game.car.braking ? "#ff7668" : "#b75b50";
+  context.fillRect(-width * .42, length * .27, width * .2, length * .09);
+  context.fillRect(width * .22, length * .27, width * .2, length * .09);
+  context.fillStyle = "#f2e4b8";
+  context.fillRect(-width * .38, -length * .5, width * .14, length * .045);
+  context.fillRect(width * .24, -length * .5, width * .14, length * .045);
   context.restore();
 }
 
 function render() {
   if (!context || !game.width || !game.height) return;
+  prepareProjection();
   context.setTransform(game.pixelRatio, 0, 0, game.pixelRatio, 0, 0);
   context.clearRect(0, 0, game.width, game.height);
   drawWorld();
@@ -876,6 +1015,12 @@ function render() {
 
 function frame(timestamp) {
   if (!game.running) return;
+  if (document.hidden) {
+    game.lastFrame = 0;
+    clearInput();
+    requestAnimationFrame(frame);
+    return;
+  }
   if (!game.lastFrame) game.lastFrame = timestamp;
   const elapsed = Math.min((timestamp - game.lastFrame) / 1000, 0.1);
   game.lastFrame = timestamp;
@@ -889,11 +1034,11 @@ function frame(timestamp) {
   if (game.driving) {
     document.querySelector("#speedValue").textContent = String(Math.round(Math.abs(game.car.speed) * .36)).padStart(3, "0");
     const nearestDistrict = districts.map((district) => ({ district, range: distance(game.car, district) })).sort((a, b) => a.range - b.range)[0];
-    game.district = nearestDistrict.range < 360 ? nearestDistrict.district : null;
+    game.district = nearestDistrict.range < DRIVE.interactionExitRadius * 1.7 ? nearestDistrict.district : null;
     document.querySelector("#currentDistrict").textContent = game.district?.shortTitle.toUpperCase() ?? "WELCOME PLAZA";
     document.querySelector("#drivingStatus").textContent = game.district ? `EXPLORING ${game.district.shortTitle.toUpperCase()}` : "CRUISING PORTFOLIO DRIVE";
   }
-  render();
+  if (!driveView.hidden && game.driving && !game.dialogOpen) render();
   requestAnimationFrame(frame);
 }
 
@@ -967,6 +1112,11 @@ function goToPortfolioSection(sectionId) {
   if (game.dialogOpen) closeDialog(true);
   showPortfolio(sectionId);
   history.pushState({ portfolioDrive: true }, "", `#${sectionId}`);
+  const heading = valid.querySelector("h1, h2");
+  if (heading) {
+    heading.tabIndex = -1;
+    heading.focus({ preventScroll: true });
+  }
   announce(`${valid.querySelector("h1, h2")?.textContent ?? sectionId} section`);
 }
 
