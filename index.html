@@ -70,7 +70,7 @@
           </div>
         </aside>
 
-        <aside class="map-legend" aria-label="Map districts">
+        <aside class="map-legend" id="mapLegend" aria-label="Map districts">
           <div class="legend-heading">DESTINATIONS <span>05</span></div>
           <button type="button" data-open-section="experience"><span class="legend-index">01</span><span>Experience</span><span class="legend-arrow">↗</span></button>
           <button type="button" data-open-section="education"><span class="legend-index">02</span><span>Education</span><span class="legend-arrow">↗</span></button>
@@ -106,8 +106,17 @@
           <div class="hud-speed"><span id="speedValue">000</span><span class="speed-unit">KM/H</span></div>
           <div class="hud-rule"></div>
           <div class="hud-current"><span class="hud-overline">YOU ARE IN</span><span id="currentDistrict">WELCOME PLAZA</span></div>
+          <div class="hud-boost" aria-label="Boost charge">
+            <div class="hud-boost-label"><span>NITRO</span><span id="boostValue">100%</span></div>
+            <div class="hud-boost-track"><span id="boostFill"></span></div>
+          </div>
           <button class="hud-reset" id="resetCar" type="button" aria-label="Reset car to Welcome Plaza" title="Reset car (R)">↻</button>
         </div>
+
+        <aside class="sticker-shelf" id="stickerShelf" hidden aria-label="Collected car stickers" aria-live="polite">
+          <div class="sticker-shelf-heading"><span>CAR STICKERS</span><span id="stickerCount">0 / 9</span></div>
+          <div class="sticker-shelf-items" id="stickerItems"></div>
+        </aside>
 
         <div class="interaction-prompt" id="interactionPrompt" hidden>
           <span class="prompt-icon" aria-hidden="true">↵</span>
@@ -117,8 +126,8 @@
 
         <div class="drive-help" id="driveHelp" hidden>
           <span class="help-steering" aria-hidden="true">⌘</span>
-          <span class="drive-help-keyboard"><strong>WASD</strong> / arrows to drive <i>·</i> <strong>E</strong> to explore <i>·</i> <strong>R</strong> reset</span>
-          <span class="drive-help-touch"><strong>Touch controls</strong> to drive <i>·</i> <strong>E</strong> to explore</span>
+          <span class="drive-help-keyboard"><strong>WASD</strong> / arrows drive <i>·</i> <strong>SHIFT</strong> boost <i>·</i> <strong>SPACE</strong> drift <i>·</i> <strong>E</strong> explore</span>
+          <span class="drive-help-touch"><strong>Touch controls</strong> drive <i>·</i> boost & drift <i>·</i> <strong>E</strong> explore</span>
           <button type="button" id="helpButton">CONTROLS</button>
         </div>
 
@@ -130,6 +139,10 @@
           <div class="touch-pedals">
             <button type="button" data-control="brake" aria-label="Brake or reverse">−</button>
             <button class="touch-accelerate" type="button" data-control="accelerate" aria-label="Accelerate">↑</button>
+            <div class="touch-special">
+              <button type="button" data-control="boost" aria-label="Boost">B</button>
+              <button type="button" data-control="drift" aria-label="Drift">D</button>
+            </div>
           </div>
           <button class="touch-interact" id="touchInteract" type="button" aria-label="Explore nearby destination">E</button>
         </div>

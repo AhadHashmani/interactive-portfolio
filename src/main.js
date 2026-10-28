@@ -9,24 +9,26 @@ import {
   skillGroups,
 } from "./content.js";
 
+const WORLD_SCALE = 1.65;
 const DRIVE = {
-  worldWidth: 1800,
-  worldHeight: 1200,
-  cameraDistance: 160,
-  cameraHeight: 125,
-  roadWidth: 156,
-  exhibitOffset: 96,
+  worldWidth: 1800 * WORLD_SCALE,
+  worldHeight: 1200 * WORLD_SCALE,
+  cameraDistance: 160 * WORLD_SCALE,
+  cameraHeight: 125 * WORLD_SCALE,
+  roadWidth: 156 * WORLD_SCALE,
+  exhibitOffset: 96 * WORLD_SCALE,
   horizon: 0.28,
   focalLength: 0.72,
-  maxForwardSpeed: 150,
-  maxReverseSpeed: 70,
-  acceleration: 300,
-  braking: 640,
-  coast: 190,
-  maxSteering: 1.65,
-  offRoadSpeedRatio: 0.72,
-  interactionRadius: 128,
-  interactionExitRadius: 160,
+  maxForwardSpeed: 120,
+  maxReverseSpeed: 55,
+  acceleration: 240,
+  braking: 600,
+  coast: 230,
+  maxSteering: 1.1,
+  driftSteering: 1.55,
+  offRoadSpeedRatio: 0.85,
+  interactionRadius: 128 * WORLD_SCALE,
+  interactionExitRadius: 160 * WORLD_SCALE,
   interactionSpeed: 48,
   cameraSmoothing: 8.5,
   fixedStep: 1 / 60,
@@ -34,6 +36,19 @@ const DRIVE = {
 
 const CHECKPOINT_ORDER = ["experience", "education", "projects", "skills", "contact"];
 const CHECKPOINT_STORAGE_KEY = "portfolio-drive-checkpoints-v1";
+const STICKER_STORAGE_KEY = "portfolio-drive-stickers-v1";
+
+const STICKERS = [
+  { id: "togetherwork", label: "Togetherwork", mark: "TW", color: "#b9e68a" },
+  { id: "maxel-lab", label: "Maxel Lab", mark: "M", color: "#90d6bd" },
+  { id: "fifa", label: "World Cup", mark: "🏆", color: "#e2c774", trophy: true },
+  { id: "foodscope", label: "FoodScope", mark: "FS", color: "#e8a480" },
+  { id: "axiom", label: "Axiom", mark: "AX", color: "#8bb8e7" },
+  { id: "education", label: "UT Austin", mark: "UT", color: "#e39b75" },
+  { id: "projects", label: "Projects", mark: "H₂O", color: "#8bd8e2" },
+  { id: "skills", label: "Toolkit", mark: "</>", color: "#d4a5f5" },
+  { id: "contact", label: "Contact", mark: "AH", color: "#8bd8e2" },
+];
 
 const ROAD_SEGMENTS = [
   { id: "projects", name: "PROJECT EXPRESSWAY", x1: 0, y1: 510, x2: 780, y2: 510, color: "#c4a4e5" },
@@ -61,7 +76,54 @@ const BUILDINGS = [
   { x: 560, y: 966, w: 122, d: 92, h: 80, color: "#dcc7a1", label: "WORKSHOP" },
   { x: 870, y: 970, w: 128, d: 94, h: 78, color: "#c9b991", label: "TOOL SHED" },
   { x: 1110, y: 930, w: 116, d: 90, h: 76, color: "#c9d1b5", label: "COMMUNITY HALL" },
+  { x: 80, y: 70, w: 130, d: 105, h: 90, color: "#c1c9a7", label: "GARDEN HOUSE" },
+  { x: 285, y: 82, w: 105, d: 83, h: 68, color: "#b8caaa", label: "FIELD STATION" },
+  { x: 1120, y: 55, w: 145, d: 112, h: 96, color: "#d5c9a6", label: "LIBRARY" },
+  { x: 1420, y: 82, w: 114, d: 88, h: 72, color: "#b9c9b0", label: "CAMPUS CAFE" },
+  { x: 70, y: 850, w: 138, d: 106, h: 88, color: "#c8d0b1", label: "MAKER SPACE" },
+  { x: 260, y: 1010, w: 118, d: 94, h: 78, color: "#d7c6a5", label: "OBSERVATORY" },
+  { x: 410, y: 880, w: 110, d: 84, h: 70, color: "#b9c6a9", label: "GREENHOUSE" },
+  { x: 1320, y: 1000, w: 150, d: 112, h: 90, color: "#c9c5a9", label: "MARKET HALL" },
+  { x: 1535, y: 1010, w: 116, d: 90, h: 76, color: "#c7d2b2", label: "GARDEN CAFE" },
+  { x: 80, y: 340, w: 110, d: 84, h: 71, color: "#d4c8a7", label: "ARTS STUDIO" },
+  { x: 340, y: 95, w: 128, d: 92, h: 80, color: "#d2c49f", label: "BOTANIC LAB" },
+  { x: 1020, y: 880, w: 104, d: 82, h: 68, color: "#c5d0b1", label: "PICNIC PAVILION" },
+  { x: 1690, y: 880, w: 124, d: 96, h: 79, color: "#d1c5a9", label: "MOTOR LODGE" },
+  { x: 170, y: 1020, w: 118, d: 90, h: 74, color: "#c7c9a8", label: "WATER TOWER" },
+  { x: 1520, y: 225, w: 134, d: 98, h: 82, color: "#d3d0b7", label: "CREATIVE HUB" },
 ];
+
+const STADIUM = { x: 800, y: 30, w: 370, d: 260, h: 78 };
+const FOUNTAIN = { x: 900, y: 850, radius: 34 };
+
+function scaleWorldLayout() {
+  ROAD_SEGMENTS.forEach((road) => {
+    road.x1 *= WORLD_SCALE;
+    road.y1 *= WORLD_SCALE;
+    road.x2 *= WORLD_SCALE;
+    road.y2 *= WORLD_SCALE;
+  });
+  ROUTE_SIGNS.forEach((sign) => { sign.along *= WORLD_SCALE; });
+  BUILDINGS.forEach((building) => {
+    building.x *= WORLD_SCALE;
+    building.y *= WORLD_SCALE;
+    building.w *= WORLD_SCALE;
+    building.d *= WORLD_SCALE;
+    building.h *= WORLD_SCALE;
+  });
+  [STADIUM, FOUNTAIN].forEach((landmark) => {
+    Object.keys(landmark).forEach((key) => { landmark[key] *= WORLD_SCALE; });
+  });
+  districts.forEach((district) => {
+    ["x", "y", "signX", "signY"].forEach((key) => { district[key] *= WORLD_SCALE; });
+  });
+  exhibits.forEach((exhibit) => {
+    exhibit.x *= WORLD_SCALE;
+    exhibit.y *= WORLD_SCALE;
+  });
+}
+
+scaleWorldLayout();
 
 const canvas = document.querySelector("#worldCanvas");
 const context = canvas.getContext("2d");
@@ -70,10 +132,12 @@ const portfolioView = document.querySelector("#portfolioView");
 const welcomeCard = document.querySelector("#welcomeCard");
 const driveHud = document.querySelector("#driveHud");
 const driveHelp = document.querySelector("#driveHelp");
+const mapLegend = document.querySelector("#mapLegend");
 const dialog = document.querySelector("#contentDialog");
 const dialogContent = document.querySelector("#dialogContent");
 const dialogKicker = document.querySelector("#dialogKicker");
 const announcer = document.querySelector("#announcer");
+const stickerShelf = document.querySelector("#stickerShelf");
 
 const game = {
   width: 0,
@@ -90,11 +154,14 @@ const game = {
   previousPrompt: null,
   district: null,
   checkpointIndex: 0,
-  car: { x: 780, y: 510, heading: -Math.PI / 2, speed: 0, visualSteer: 0, braking: false },
-  camera: { x: 780, y: 510, heading: -Math.PI / 2 },
+  car: { x: 780 * WORLD_SCALE, y: 510 * WORLD_SCALE, heading: -Math.PI / 2, speed: 0, visualSteer: 0, braking: false, driftAngle: 0, boosting: false },
+  camera: { x: 780 * WORLD_SCALE, y: 510 * WORLD_SCALE, heading: -Math.PI / 2 },
   keys: new Set(),
   pointers: new Map(),
   completedCheckpoints: new Set(),
+  earnedStickers: new Set(),
+  boostCharge: 100,
+  effects: [],
 };
 
 const projection = {
@@ -135,6 +202,31 @@ function element(tag, className, text) {
   if (className) node.className = className;
   if (text !== undefined && text !== null) node.textContent = text;
   return node;
+}
+
+function updateStickerShelf() {
+  if (!stickerShelf) return;
+  const items = document.querySelector("#stickerItems");
+  items.replaceChildren();
+  STICKERS.forEach((sticker) => {
+    const earned = game.earnedStickers.has(sticker.id);
+    const badge = element("span", `sticker-chip${earned ? " is-earned" : ""}`, earned ? sticker.mark : "·");
+    badge.title = earned ? `${sticker.label} sticker earned` : `${sticker.label} sticker locked`;
+    badge.setAttribute("aria-label", badge.title);
+    if (earned) badge.style.setProperty("--sticker-color", sticker.color);
+    items.append(badge);
+  });
+  document.querySelector("#stickerCount").textContent = `${game.earnedStickers.size} / ${STICKERS.length}`;
+  stickerShelf.hidden = !game.driving;
+}
+
+function awardSticker(id) {
+  const sticker = STICKERS.find((item) => item.id === id);
+  if (!sticker || game.earnedStickers.has(id)) return;
+  game.earnedStickers.add(id);
+  safeStorage.set(STICKER_STORAGE_KEY, [...game.earnedStickers].join(","));
+  updateStickerShelf();
+  announce(`${sticker.label} car sticker collected.`);
 }
 
 function exhibitWorldPoint(exhibit) {
@@ -477,7 +569,11 @@ function openSection(sectionId, route = sectionId) {
         ["W / ↑", "Accelerate"],
         ["S / ↓", "Brake, then reverse"],
         ["A / ← · D / →", "Steer"],
+        ["Hold Shift + W", "Boost while accelerating; charge refills when released"],
+        ["Hold Space + steer", "Drift through turns and leave tire smoke"],
         ["E / Enter", "Open a nearby checkpoint or exhibit"],
+        ["Checkpoints", "Collect a career sticker; role billboards have their own rewards"],
+        ["Stadium", "Follow Experience Highway to the FIFA World Cup destination at NRG Stadium"],
         ["Route panel", "Follow the arrow to the next career checkpoint"],
         ["R", "Reset car to Welcome Plaza"],
         ["Escape", "Close this panel"],
@@ -533,6 +629,7 @@ function showDrive(showWelcome = false) {
     driveHud.hidden = true;
     driveHelp.hidden = true;
   }
+  mapLegend.hidden = game.driving;
   updateTouchControls();
   updateCheckpointNavigation();
   window.scrollTo({ top: 0, behavior: reducedMotion.matches ? "auto" : "smooth" });
@@ -550,11 +647,13 @@ function resumeCheckpointRoute() {
 }
 
 function resetCar() {
-  game.car.x = 780;
-  game.car.y = 510;
+  game.car.x = 780 * WORLD_SCALE;
+  game.car.y = 510 * WORLD_SCALE;
   game.car.heading = -Math.PI / 2;
   game.car.speed = 0;
   game.car.visualSteer = 0;
+  game.car.driftAngle = 0;
+  game.car.boosting = false;
   game.car.braking = false;
   game.camera.x = game.car.x;
   game.camera.y = game.car.y;
@@ -581,6 +680,8 @@ function readControls() {
     brake: has("s", "arrowdown") || pointerHas("brake"),
     left: has("a", "arrowleft") || pointerHas("left"),
     right: has("d", "arrowright") || pointerHas("right"),
+    boost: has("shift") || pointerHas("boost"),
+    drift: has(" ") || pointerHas("drift"),
   };
 }
 
@@ -592,13 +693,18 @@ function accelerateTowardZero(speed, amount) {
 function updateCar(dt) {
   const controls = readControls();
   const car = game.car;
-  const onRoad = ROAD_SEGMENTS.some((segment) => distanceToSegment(car.x, car.y, segment) < 92);
-  const limit = onRoad ? DRIVE.maxForwardSpeed : DRIVE.maxForwardSpeed * DRIVE.offRoadSpeedRatio;
+  const onRoad = ROAD_SEGMENTS.some((segment) => distanceToSegment(car.x, car.y, segment) < DRIVE.roadWidth * 0.57);
+  const boosting = controls.accelerate && controls.boost && game.boostCharge > 0 && car.speed >= 0;
+  car.boosting = boosting;
+  if (boosting) game.boostCharge = Math.max(0, game.boostCharge - 58 * dt);
+  else game.boostCharge = Math.min(100, game.boostCharge + 24 * dt);
+  const limit = (onRoad ? DRIVE.maxForwardSpeed : DRIVE.maxForwardSpeed * DRIVE.offRoadSpeedRatio)
+    * (boosting ? 1.48 : 1);
   const reverseLimit = onRoad ? DRIVE.maxReverseSpeed : DRIVE.maxReverseSpeed * DRIVE.offRoadSpeedRatio;
 
   if (controls.accelerate) {
     if (car.speed < 0) car.speed = accelerateTowardZero(car.speed, DRIVE.braking * dt);
-    else car.speed = Math.min(limit, car.speed + DRIVE.acceleration * dt);
+    else car.speed = Math.min(limit, car.speed + DRIVE.acceleration * (boosting ? 2 : 1) * dt);
   } else if (controls.brake) {
     if (car.speed > 0) car.speed = accelerateTowardZero(car.speed, DRIVE.braking * dt);
     else car.speed = Math.max(-reverseLimit, car.speed - DRIVE.acceleration * 0.7 * dt);
@@ -611,12 +717,16 @@ function updateCar(dt) {
   car.visualSteer = steerInput;
   car.braking = controls.brake && car.speed > 0;
   if (steerInput && Math.abs(car.speed) > 5) {
-    const speedFactor = 0.5 + 0.4 * Math.min(Math.abs(car.speed) / 100, 1);
-    car.heading += steerInput * DRIVE.maxSteering * speedFactor * Math.sign(car.speed) * dt;
+    const speedFactor = 0.45 + 0.42 * Math.min(Math.abs(car.speed) / DRIVE.maxForwardSpeed, 1);
+    const drifting = controls.drift && Math.abs(car.speed) > 28;
+    car.heading += steerInput * (drifting ? DRIVE.driftSteering : DRIVE.maxSteering) * speedFactor * Math.sign(car.speed) * dt;
   }
 
-  const dx = Math.cos(car.heading) * car.speed * dt;
-  const dy = Math.sin(car.heading) * car.speed * dt;
+  const drifting = controls.drift && Math.abs(car.speed) > 28 && Boolean(steerInput);
+  car.driftAngle = lerp(car.driftAngle, drifting ? steerInput * 0.34 : 0, Math.min(1, (drifting ? 3.1 : 2.3) * dt));
+  const movementHeading = car.heading + car.driftAngle;
+  const dx = Math.cos(movementHeading) * car.speed * dt;
+  const dy = Math.sin(movementHeading) * car.speed * dt;
   const nextX = clamp(car.x + dx, 22, DRIVE.worldWidth - 22);
   const nextY = clamp(car.y + dy, 22, DRIVE.worldHeight - 22);
   if (collidingBuildings(nextX, car.y)) {
@@ -630,6 +740,18 @@ function updateCar(dt) {
     car.y = nextY;
   }
 
+  if (drifting && game.effects.length < 24 && Math.random() < dt * 30) {
+    game.effects.push({
+      x: car.x - Math.cos(car.heading) * 23,
+      y: car.y - Math.sin(car.heading) * 23,
+      life: 0.65,
+      radius: 5 + Math.random() * 5,
+    });
+  }
+  game.effects = game.effects
+    .map((effect) => ({ ...effect, life: effect.life - dt, radius: effect.radius + dt * 13 }))
+    .filter((effect) => effect.life > 0);
+
   const cameraBlend = reducedMotion.matches ? 1 : 1 - Math.exp(-DRIVE.cameraSmoothing * dt);
   game.camera.x = lerp(game.camera.x, car.x, cameraBlend);
   game.camera.y = lerp(game.camera.y, car.y, cameraBlend);
@@ -638,12 +760,16 @@ function updateCar(dt) {
 }
 
 function collidingBuildings(x, y) {
-  const radius = 13;
+  const radius = 13 * WORLD_SCALE;
   for (const building of BUILDINGS) {
     const hitX = x + radius > building.x && x - radius < building.x + building.w;
     const hitY = y + radius > building.y && y - radius < building.y + building.d;
     if (hitX && hitY) return true;
   }
+  const stadiumHitX = x + radius > STADIUM.x && x - radius < STADIUM.x + STADIUM.w;
+  const stadiumHitY = y + radius > STADIUM.y && y - radius < STADIUM.y + STADIUM.d;
+  if (stadiumHitX && stadiumHitY) return true;
+  if (Math.hypot(x - FOUNTAIN.x, y - FOUNTAIN.y) < FOUNTAIN.radius + radius) return true;
   return false;
 }
 
@@ -704,6 +830,7 @@ function openActivePrompt() {
     game.checkpointIndex += 1;
     game.completedCheckpoints.add(checkpoint.id);
     safeStorage.set(CHECKPOINT_STORAGE_KEY, [...game.completedCheckpoints].join(","));
+    awardSticker(checkpoint.id === "experience" ? "togetherwork" : checkpoint.id);
     const nextCheckpoint = getNextCheckpoint();
     game.activePrompt = null;
     game.previousPrompt = null;
@@ -715,6 +842,7 @@ function openActivePrompt() {
     return;
   }
   if (game.activePrompt.targetType === "exhibit") {
+    awardSticker(game.activePrompt.contentId);
     if (game.activePrompt.type === "experience") openExperienceItem(game.activePrompt.contentId);
     else openProject(game.activePrompt.contentId);
     return;
@@ -769,7 +897,9 @@ function updateCheckpointNavigation() {
   directionLabel.textContent = remaining < DRIVE.interactionRadius
     ? Math.abs(game.car.speed) < DRIVE.interactionSpeed ? "PRESS E TO EXPLORE" : "SLOW DOWN TO ARRIVE"
     : angleDegrees < 22 ? "CONTINUE AHEAD" : relativeBearing > 0 ? "TURN RIGHT" : "TURN LEFT";
-  distanceLabel.textContent = remaining < DRIVE.interactionRadius ? "NEARBY" : `${Math.round(remaining)} m`;
+  distanceLabel.textContent = remaining < DRIVE.interactionRadius
+    ? "NEARBY"
+    : remaining >= 1000 ? `${(remaining / 1000).toFixed(1)} km` : `${Math.round(remaining)} m`;
   arrow.style.transform = `rotate(${remaining < 20 ? 0 : relativeBearing}rad)`;
 }
 
@@ -790,7 +920,7 @@ function projectWorldPoint(x, y) {
   const relativeX = x - projection.cameraX;
   const relativeY = y - projection.cameraY;
   const depth = relativeX * projection.forwardX + relativeY * projection.forwardY;
-  if (depth < 8 || depth > 1800) return null;
+  if (depth < 8 || depth > 1800 * WORLD_SCALE) return null;
   const lateral = relativeX * projection.rightX + relativeY * projection.rightY;
   const scale = projection.focal / depth;
   return {
@@ -826,6 +956,8 @@ function drawWorld() {
   drawRoads();
   drawTrees();
   BUILDINGS.forEach(drawBuilding);
+  drawFountain();
+  drawNRGStadium();
   drawRouteSigns();
   exhibits
     .map((exhibit) => ({ exhibit, depth: (exhibit.x - projection.cameraX) * projection.forwardX + (exhibit.y - projection.cameraY) * projection.forwardY }))
@@ -833,6 +965,7 @@ function drawWorld() {
     .forEach(({ exhibit }) => drawExhibit(exhibit));
   districts.forEach(drawDistrict);
   drawCheckpointBeacon(getNextCheckpoint());
+  drawCarEffects();
   drawPlayerCar();
 }
 
@@ -876,10 +1009,10 @@ function drawRoadRibbon(segment, halfWidth, color) {
   let endAlong = length;
   const nearDepth = DRIVE.roadWidth * .72;
   if (Math.abs(depthDelta) < .001) {
-    if (startDepth < nearDepth || startDepth > 1700) return;
+    if (startDepth < nearDepth || startDepth > 1700 * WORLD_SCALE) return;
   } else {
     const nearAlong = (nearDepth - startDepth) / depthDelta * length;
-    const farAlong = (1700 - startDepth) / depthDelta * length;
+    const farAlong = (1700 * WORLD_SCALE - startDepth) / depthDelta * length;
     startAlong = Math.max(0, Math.min(nearAlong, farAlong));
     endAlong = Math.min(length, Math.max(nearAlong, farAlong));
     if (startAlong >= endAlong) return;
@@ -906,8 +1039,8 @@ function drawRoadRibbon(segment, halfWidth, color) {
 function drawRoadMarkings() {
   for (const segment of ROAD_SEGMENTS) {
     const length = Math.hypot(segment.x2 - segment.x1, segment.y2 - segment.y1);
-    for (let along = 0; along < length; along += 126) {
-      const dashEnd = Math.min(along + 48, length);
+    for (let along = 0; along < length; along += 126 * WORLD_SCALE) {
+      const dashEnd = Math.min(along + 48 * WORLD_SCALE, length);
       const centerStart = roadPoint(segment, along);
       const centerEnd = roadPoint(segment, dashEnd);
       const start = projectWorldPoint(centerStart.x, centerStart.y);
@@ -1020,6 +1153,22 @@ function drawBuilding(building) {
   roof.slice(1).forEach((point) => context.lineTo(point.x, point.y));
   context.closePath();
   context.fill();
+  context.strokeStyle = "rgba(248, 242, 211, .34)";
+  context.lineWidth = 1;
+  context.beginPath();
+  context.moveTo(roof[0].x, roof[0].y);
+  roof.slice(1).forEach((point) => context.lineTo(point.x, point.y));
+  context.closePath();
+  context.stroke();
+  const roofCenter = roof.reduce((center, point) => ({
+    x: center.x + point.x / roof.length,
+    y: center.y + point.y / roof.length,
+  }), { x: 0, y: 0 });
+  context.fillStyle = "rgba(35, 54, 41, .83)";
+  context.font = `500 ${clamp(8 * corners[0].scale, 5, 9)}px 'DM Mono', monospace`;
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+  context.fillText(building.label, roofCenter.x, roofCenter.y, Math.hypot(roof[1].x - roof[0].x, roof[1].y - roof[0].y) * .8);
   context.fillStyle = "#405748";
   for (let index = 1; index <= 3; index += 1) {
     const ratio = index / 4;
@@ -1030,6 +1179,122 @@ function drawBuilding(building) {
     const windowHeight = Math.max(2, (leftY - rightY) * .32);
     context.fillRect(leftX - 3, lerp(leftY, rightY, .42), 6, windowHeight);
   }
+  context.restore();
+}
+
+function drawFountain() {
+  const base = projectWorldPoint(FOUNTAIN.x, FOUNTAIN.y);
+  if (!base || base.x < -140 || base.x > game.width + 140) return;
+  const radius = FOUNTAIN.radius * base.scale;
+  context.save();
+  context.fillStyle = "rgba(27, 44, 31, .3)";
+  context.beginPath();
+  context.ellipse(base.x, base.y + radius * .12, radius * 1.65, radius * .58, 0, 0, Math.PI * 2);
+  context.fill();
+  context.fillStyle = "#b8b49a";
+  context.beginPath();
+  context.ellipse(base.x, base.y, radius * 1.55, radius * .58, 0, 0, Math.PI * 2);
+  context.fill();
+  context.strokeStyle = "#eee2bd";
+  context.lineWidth = Math.max(1, base.scale * 5);
+  context.stroke();
+  context.fillStyle = "#5ba8a1";
+  context.beginPath();
+  context.ellipse(base.x, base.y - radius * .04, radius * 1.28, radius * .43, 0, 0, Math.PI * 2);
+  context.fill();
+  context.strokeStyle = "rgba(219, 250, 231, .75)";
+  context.lineWidth = Math.max(1, base.scale * 2);
+  context.beginPath();
+  context.ellipse(base.x, base.y - radius * .05, radius * .76, radius * .25, 0, Math.PI * .08, Math.PI * .88);
+  context.stroke();
+  context.fillStyle = "#ded4b6";
+  context.beginPath();
+  context.ellipse(base.x, base.y - radius * .15, radius * .32, radius * .15, 0, 0, Math.PI * 2);
+  context.fill();
+  context.strokeStyle = "rgba(224, 252, 240, .84)";
+  context.lineWidth = Math.max(1, base.scale * 2);
+  context.beginPath();
+  context.moveTo(base.x, base.y - radius * .2);
+  context.quadraticCurveTo(base.x - radius * .13, base.y - radius * 1.25, base.x, base.y - radius * 1.85);
+  context.quadraticCurveTo(base.x + radius * .12, base.y - radius * 1.25, base.x, base.y - radius * .2);
+  context.stroke();
+  context.restore();
+}
+
+function drawNRGStadium() {
+  const center = projectWorldPoint(STADIUM.x + STADIUM.w / 2, STADIUM.y + STADIUM.d / 2);
+  if (!center || center.x < -STADIUM.w || center.x > game.width + STADIUM.w) return;
+  const scale = clamp(center.scale, 0.28, 1.35);
+  const rx = STADIUM.w * scale * 0.49;
+  const ry = STADIUM.d * scale * 0.39;
+  const height = STADIUM.h * scale;
+  context.save();
+  context.translate(center.x, center.y);
+  context.fillStyle = "rgba(30, 43, 34, .35)";
+  context.beginPath();
+  context.ellipse(6 * scale, 4 * scale, rx * 1.12, ry * 1.17, 0, 0, Math.PI * 2);
+  context.fill();
+
+  const facade = context.createLinearGradient(0, -height * .2, 0, ry * .72);
+  facade.addColorStop(0, "#adb6aa");
+  facade.addColorStop(1, "#58685d");
+  context.fillStyle = facade;
+  context.beginPath();
+  context.ellipse(0, height * .12, rx, ry, 0, 0, Math.PI * 2);
+  context.fill();
+  context.strokeStyle = "#e8dcb9";
+  context.lineWidth = Math.max(1, scale * 8);
+  context.stroke();
+  context.fillStyle = "#313e38";
+  context.beginPath();
+  context.ellipse(0, -height * .04, rx * .88, ry * .87, 0, 0, Math.PI * 2);
+  context.fill();
+  context.fillStyle = "#a8b7a5";
+  context.beginPath();
+  context.ellipse(0, -height * .12, rx * .78, ry * .72, 0, 0, Math.PI * 2);
+  context.fill();
+  context.fillStyle = "#385c43";
+  context.beginPath();
+  context.ellipse(0, -height * .13, rx * .51, ry * .4, 0, 0, Math.PI * 2);
+  context.fill();
+  context.strokeStyle = "rgba(242, 244, 216, .8)";
+  context.lineWidth = Math.max(1, scale * 2);
+  context.beginPath();
+  context.ellipse(0, -height * .13, rx * .42, ry * .3, 0, 0, Math.PI * 2);
+  context.moveTo(-rx * .48, -height * .13);
+  context.lineTo(rx * .48, -height * .13);
+  context.stroke();
+
+  const roof = context.createLinearGradient(-rx, -ry, rx, ry);
+  roof.addColorStop(0, "#f1e4c4");
+  roof.addColorStop(.4, "#c8c4ad");
+  roof.addColorStop(1, "#8d9c8d");
+  context.fillStyle = roof;
+  context.beginPath();
+  context.ellipse(0, -height * .26, rx, ry * .79, 0, 0, Math.PI * 2);
+  context.ellipse(0, -height * .26, rx * .57, ry * .43, 0, 0, Math.PI * 2, true);
+  context.fill("evenodd");
+  context.strokeStyle = "#f3e7c7";
+  context.lineWidth = Math.max(1, scale * 4);
+  context.beginPath();
+  context.ellipse(0, -height * .26, rx, ry * .79, 0, 0, Math.PI * 2);
+  context.stroke();
+  context.strokeStyle = "rgba(91, 107, 95, .72)";
+  context.lineWidth = Math.max(1, scale * 2);
+  for (let rib = -3; rib <= 3; rib += 1) {
+    const offset = rib * rx * .2;
+    context.beginPath();
+    context.moveTo(offset, -height * .26 - ry * .78);
+    context.lineTo(offset * .58, -height * .26 - ry * .38);
+    context.stroke();
+  }
+  context.fillStyle = "#1a2921";
+  context.fillRect(-rx * .34, -ry * .68 - height * .26, rx * .68, Math.max(20 * scale, 11));
+  context.fillStyle = "#f0d98f";
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+  context.font = `700 ${clamp(15 * scale, 8, 20)}px 'DM Mono', monospace`;
+  context.fillText("NRG STADIUM", 0, -ry * .68 - height * .26 + Math.max(10 * scale, 6), rx * .64);
   context.restore();
 }
 
@@ -1391,6 +1656,20 @@ function drawCheckpointBeacon(checkpoint) {
   context.restore();
 }
 
+function drawCarEffects() {
+  for (const effect of game.effects) {
+    const point = projectWorldPoint(effect.x, effect.y);
+    if (!point) continue;
+    context.save();
+    context.globalAlpha = clamp(effect.life / 0.65, 0, 0.52);
+    context.fillStyle = "#e0e0d2";
+    context.beginPath();
+    context.ellipse(point.x, point.y, effect.radius * point.scale * 3, effect.radius * point.scale * 1.4, 0, 0, Math.PI * 2);
+    context.fill();
+    context.restore();
+  }
+}
+
 function drawPlayerCar() {
   const width = clamp(game.width * .052, 39, 70);
   const length = width * 1.72;
@@ -1398,7 +1677,7 @@ function drawPlayerCar() {
   const y = game.height * .82;
   context.save();
   context.translate(x, y);
-  context.rotate(-game.car.visualSteer * .045);
+  context.rotate(-game.car.visualSteer * .045 + game.car.driftAngle * .18);
   context.fillStyle = "rgba(16, 25, 19, .35)";
   context.beginPath();
   context.ellipse(3, length * .2, width * .63, length * .55, 0, 0, Math.PI * 2);
@@ -1444,9 +1723,49 @@ function drawPlayerCar() {
   context.fillStyle = game.car.braking ? "#ff7668" : "#b75b50";
   context.fillRect(-width * .42, length * .27, width * .2, length * .09);
   context.fillRect(width * .22, length * .27, width * .2, length * .09);
+  if (game.car.boosting) {
+    const flameLength = 0.5 + Math.sin(performance.now() * 0.025) * 0.06;
+    context.fillStyle = "#f4d477";
+    context.beginPath();
+    context.moveTo(-width * .3, length * .34);
+    context.lineTo(-width * .2, length * .34);
+    context.lineTo(-width * .25, length * flameLength);
+    context.closePath();
+    context.fill();
+    context.beginPath();
+    context.moveTo(width * .2, length * .34);
+    context.lineTo(width * .3, length * .34);
+    context.lineTo(width * .25, length * flameLength);
+    context.closePath();
+    context.fill();
+  }
   context.fillStyle = "#f2e4b8";
   context.fillRect(-width * .38, -length * .5, width * .14, length * .045);
   context.fillRect(width * .24, -length * .5, width * .14, length * .045);
+  game.earnedStickers.forEach((id, index) => {
+    const sticker = STICKERS.find((item) => item.id === id);
+    if (!sticker) return;
+    const column = index % 3;
+    const row = Math.floor(index / 3);
+    const stickerWidth = width * .19;
+    const stickerHeight = length * .075;
+    const stickerX = (column - 1) * width * .22;
+    const stickerY = length * (.045 + row * .095);
+    context.fillStyle = sticker.color;
+    context.fillRect(stickerX - stickerWidth / 2, stickerY, stickerWidth, stickerHeight);
+    context.strokeStyle = "#26352a";
+    context.lineWidth = 0.7;
+    context.strokeRect(stickerX - stickerWidth / 2, stickerY, stickerWidth, stickerHeight);
+    if (sticker.trophy) {
+      drawWorldCupTrophy(stickerX, stickerY + stickerHeight * .42, stickerHeight / 32);
+    } else {
+      context.fillStyle = "#203026";
+      context.font = `700 ${clamp(stickerHeight * .8, 3, 5)}px 'DM Mono', monospace`;
+      context.textAlign = "center";
+      context.textBaseline = "middle";
+      context.fillText(sticker.mark, stickerX, stickerY + stickerHeight * .52, stickerWidth);
+    }
+  });
   context.restore();
 }
 
@@ -1478,6 +1797,10 @@ function frame(timestamp) {
   }
   if (game.driving) {
     document.querySelector("#speedValue").textContent = String(Math.round(Math.abs(game.car.speed) * .36)).padStart(3, "0");
+    const boostPercent = Math.round(game.boostCharge);
+    document.querySelector("#boostValue").textContent = `${boostPercent}%`;
+    document.querySelector("#boostFill").style.width = `${boostPercent}%`;
+    document.querySelector("#boostFill").classList.toggle("is-depleted", boostPercent === 0);
     const nearestDistrict = districts.map((district) => ({ district, range: distance(game.car, district) })).sort((a, b) => a.range - b.range)[0];
     game.district = nearestDistrict.range < DRIVE.interactionExitRadius * 1.7 ? nearestDistrict.district : null;
     document.querySelector("#currentDistrict").textContent = game.district?.shortTitle.toUpperCase() ?? "WELCOME PLAZA";
@@ -1496,12 +1819,15 @@ function startLoop() {
 
 function setDriving(active) {
   game.driving = active;
+  mapLegend.hidden = active;
   welcomeCard.hidden = active;
   driveHud.hidden = !active;
   driveHelp.hidden = !active;
   updateTouchControls();
+  updateStickerShelf();
   updateCheckpointNavigation();
   if (active) {
+    window.scrollTo({ top: 0, behavior: "auto" });
     game.lastFrame = 0;
     document.querySelector("#resetCar").focus({ preventScroll: true });
     announce(isMobile.matches
@@ -1518,7 +1844,7 @@ function updateTouchControls() {
 function handleKeyDown(event) {
   if (isEditableTarget(event.target)) return;
   const key = event.key.toLowerCase();
-  const drivingKeys = ["w", "a", "s", "d", "arrowup", "arrowdown", "arrowleft", "arrowright"];
+  const drivingKeys = ["w", "a", "s", "d", "arrowup", "arrowdown", "arrowleft", "arrowright", "shift", " "];
   if (drivingKeys.includes(key) && game.driving && !game.dialogOpen && portfolioView.hidden) {
     event.preventDefault();
     game.keys.add(key);
@@ -1697,10 +2023,23 @@ function initialize() {
       .filter((id) => CHECKPOINT_ORDER.includes(id))
       .forEach((id) => game.completedCheckpoints.add(id));
   }
+  const storedStickers = safeStorage.get(STICKER_STORAGE_KEY);
+  if (storedStickers) {
+    const validStickerIds = new Set(STICKERS.map((sticker) => sticker.id));
+    storedStickers.split(",")
+      .filter((id) => validStickerIds.has(id))
+      .forEach((id) => game.earnedStickers.add(id));
+  }
+  if (game.completedCheckpoints.has("experience")) game.earnedStickers.add("togetherwork");
+  ["education", "projects", "skills", "contact"].forEach((id) => {
+    if (game.completedCheckpoints.has(id)) game.earnedStickers.add(id);
+  });
+  if (game.earnedStickers.size) safeStorage.set(STICKER_STORAGE_KEY, [...game.earnedStickers].join(","));
   getNextCheckpoint();
   hydratePortfolioCopy();
   configureTouchControls();
   installEvents();
+  updateStickerShelf();
   if (!context) {
     document.querySelector("#startDriving").disabled = true;
     document.querySelector("#startDriving").textContent = "Canvas unavailable";

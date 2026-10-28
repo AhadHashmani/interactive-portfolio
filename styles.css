@@ -110,15 +110,27 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--lime); outline-
 .welcome-divider { padding: 0 5px; color: #667267; }
 .welcome-drive-touch { display: none; }
 
-.drive-hud { position: absolute; top: 138px; left: clamp(24px, 5vw, 76px); z-index: 5; display: flex; align-items: center; gap: 17px; min-height: 54px; padding: 8px 11px 8px 15px; background: rgba(17, 26, 19, .91); border: 1px solid rgba(240, 245, 230, .18); box-shadow: 0 12px 34px rgba(12, 24, 15, .2); backdrop-filter: blur(12px); }
+.drive-hud { position: absolute; top: 138px; left: clamp(24px, 5vw, 76px); z-index: 5; display: flex; align-items: center; gap: 15px; min-height: 54px; padding: 8px 11px 8px 15px; background: rgba(17, 26, 19, .91); border: 1px solid rgba(240, 245, 230, .18); box-shadow: 0 12px 34px rgba(12, 24, 15, .2); backdrop-filter: blur(12px); }
 .hud-speed { display: flex; flex-direction: column; color: var(--lime); font: 19px var(--mono); line-height: 1; }
 .speed-unit { margin-top: 4px; color: #99a596; font: 7px var(--mono); letter-spacing: .1em; }
 .hud-rule { height: 29px; width: 1px; background: rgba(242, 246, 234, .2); }
 .hud-current { display: flex; flex-direction: column; gap: 5px; min-width: 120px; }
 .hud-overline { color: #96a092; font: 8px var(--mono); letter-spacing: .1em; }
 #currentDistrict { color: #f2f3e9; font: 9px var(--mono); letter-spacing: .035em; }
+.hud-boost { width: 76px; }
+.hud-boost-label { display: flex; justify-content: space-between; gap: 5px; margin-bottom: 5px; color: #a7b3a2; font: 7px var(--mono); }
+.hud-boost-label span:first-child { color: #f0d98f; letter-spacing: .08em; }
+.hud-boost-track { height: 4px; overflow: hidden; background: rgba(240, 244, 232, .18); }
+.hud-boost-track span { display: block; width: 100%; height: 100%; background: linear-gradient(90deg, #c2ed88, #f0d98f); transition: width .1s linear; }
+.hud-boost-track span.is-depleted { background: #e88973; }
 .hud-reset { width: 30px; height: 30px; border: 1px solid rgba(238, 242, 228, .2); background: transparent; color: #dee5d6; font: 19px var(--sans); cursor: pointer; }
 .hud-reset:hover { color: var(--lime); border-color: var(--lime); }
+.sticker-shelf { position: absolute; z-index: 4; top: 207px; left: clamp(24px, 5vw, 76px); width: min(250px, calc(100% - 36px)); padding: 9px 11px 10px; border: 1px solid rgba(240, 245, 230, .18); background: rgba(17, 26, 19, .86); box-shadow: 0 8px 25px rgba(12, 24, 15, .16); backdrop-filter: blur(10px); }
+.sticker-shelf-heading { display: flex; justify-content: space-between; margin-bottom: 8px; color: #c4cfbd; font: 7px var(--mono); letter-spacing: .1em; }
+.sticker-shelf-heading span:last-child { color: var(--lime); }
+.sticker-shelf-items { display: flex; flex-wrap: wrap; gap: 5px; }
+.sticker-chip { display: grid; place-items: center; width: 28px; height: 22px; border: 1px solid rgba(239, 244, 231, .15); color: #788476; font: 8px var(--mono); }
+.sticker-chip.is-earned { border-color: color-mix(in srgb, var(--sticker-color), transparent 35%); background: color-mix(in srgb, var(--sticker-color), transparent 88%); color: var(--sticker-color); box-shadow: inset 0 0 12px color-mix(in srgb, var(--sticker-color), transparent 91%); }
 .interaction-prompt { position: absolute; z-index: 5; left: 50%; bottom: 93px; display: flex; align-items: center; gap: 13px; min-width: 280px; transform: translateX(-50%); padding: 13px 14px; background: rgba(17, 26, 19, .95); border: 1px solid rgba(194, 237, 136, .65); box-shadow: 0 12px 42px rgba(12, 24, 15, .26); }
 .prompt-icon { display: grid; place-items: center; width: 31px; height: 31px; background: var(--lime); color: #152015; font: 16px var(--mono); }
 .interaction-prompt strong, .interaction-prompt small { display: block; }
@@ -137,6 +149,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--lime); outline-
 .map-credit { position: absolute; right: clamp(24px, 5vw, 76px); bottom: 30px; color: rgba(246, 248, 238, .76); font: 8px var(--mono); letter-spacing: .12em; text-shadow: 0 1px 6px rgba(10, 20, 12, .55); }
 .map-credit span { padding: 0 5px; color: var(--lime); }
 .touch-controls { display: none; }
+.touch-special { display: flex; flex-direction: column; gap: 5px; }
 
 .portfolio-view { padding-top: 76px; background: #111813; }
 .portfolio-intro { padding: clamp(65px, 9vw, 130px) clamp(25px, 11vw, 170px) 76px; border-bottom: 1px solid var(--line); }
@@ -283,16 +296,20 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--lime); outline-
   .map-legend { display: none; }
   .world-label { display: none; }
   .map-credit { right: 17px; bottom: 18px; font-size: 7px; }
-  .drive-hud { top: 153px; left: 18px; min-height: 48px; }
+  .drive-hud { top: 153px; left: 18px; gap: 10px; min-height: 48px; padding: 7px 8px 7px 11px; }
+  .hud-current { min-width: 91px; }
+  .hud-boost { width: 58px; }
+  .sticker-shelf { top: 307px; left: 50%; width: min(250px, calc(100% - 36px)); transform: translateX(-50%); }
   .interaction-prompt { bottom: 190px; min-width: min(300px, calc(100% - 30px)); }
   .drive-help { bottom: 149px; font-size: 8px; }
   .drive-help-keyboard { display: none; }
   .drive-help-touch { display: inline; }
   .drive-help button { display: none; }
   .touch-controls { position: absolute; z-index: 5; right: 18px; bottom: 22px; left: 18px; display: flex; align-items: end; justify-content: space-between; pointer-events: none; touch-action: none; }
-  .touch-steering, .touch-pedals { display: flex; gap: 8px; }
+  .touch-steering,   .touch-pedals { display: flex; align-items: end; gap: 7px; }
   .touch-controls button { display: grid; place-items: center; width: 50px; height: 50px; border: 1px solid rgba(244,248,234,.42); border-radius: 50%; background: rgba(18,28,20,.75); color: #f4f5ec; font-size: 19px; box-shadow: 0 5px 18px rgba(10,18,11,.25); pointer-events: auto; touch-action: none; user-select: none; }
   .touch-controls button:active { background: rgba(194,237,136,.3); border-color: var(--lime); }
+  .touch-special button { width: 37px; height: 37px; border-color: rgba(240,217,143,.55); color: #f0d98f; font: 10px var(--mono); }
   .touch-controls .touch-accelerate { border-color: rgba(194,237,136,.8); background: rgba(194,237,136,.92); color: #172018; }
   .touch-controls .touch-interact { position: absolute; right: 8px; bottom: 60px; width: 40px; height: 40px; color: var(--lime); font: 12px var(--mono); }
   .portfolio-view { padding-top: 105px; }
@@ -327,9 +344,10 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--lime); outline-
   .welcome-foot .keycap { display: none; }
   .drive-help-touch { display: inline; }
   .touch-controls { position: absolute; z-index: 5; right: 18px; bottom: 22px; left: 18px; display: flex; align-items: end; justify-content: space-between; pointer-events: none; touch-action: none; }
-  .touch-steering, .touch-pedals { display: flex; gap: 8px; }
+  .touch-steering,   .touch-pedals { display: flex; align-items: end; gap: 7px; }
   .touch-controls button { display: grid; place-items: center; width: 50px; height: 50px; border: 1px solid rgba(244,248,234,.42); border-radius: 50%; background: rgba(18,28,20,.75); color: #f4f5ec; font-size: 19px; box-shadow: 0 5px 18px rgba(10,18,11,.25); pointer-events: auto; touch-action: none; user-select: none; }
   .touch-controls button:active { background: rgba(194,237,136,.3); border-color: var(--lime); }
+  .touch-special button { width: 37px; height: 37px; border-color: rgba(240,217,143,.55); color: #f0d98f; font: 10px var(--mono); }
   .touch-controls .touch-accelerate { border-color: rgba(194,237,136,.8); background: rgba(194,237,136,.92); color: #172018; }
   .touch-controls .touch-interact { position: absolute; right: 8px; bottom: 60px; width: 40px; height: 40px; color: var(--lime); font: 12px var(--mono); }
   .interaction-prompt { bottom: 145px; }

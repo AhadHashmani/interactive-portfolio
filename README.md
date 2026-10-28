@@ -1,6 +1,6 @@
 # Portfolio Drive
 
-A responsive, resume-backed portfolio for Ahad Hashmani with an optional behind-the-car driving view and a conventional HTML portfolio. Five named, color-accented routes lead to distinct portfolio districts. Follow the on-screen navigation through Experience, Education, Projects, Skills, and Contact checkpoints; each checkpoint opens its matching career area. The Experience Highway has an illustrated billboard for every role, including a custom World Cup trophy scene at FIFA; the Project Expressway has illustrated project landmarks. Each exhibit opens its matching resume-backed detail panel when approached slowly. The same destinations remain available from the interface. Built with HTML, CSS, Canvas 2D, and vanilla JavaScript modules; no framework or runtime dependency is required.
+A responsive, resume-backed portfolio for Ahad Hashmani with an optional behind-the-car driving view and a conventional HTML portfolio. The expanded illustrated map has five named, color-accented routes, additional buildings, a central fountain, and an original NRG Stadium landmark for the FIFA World Cup destination. Follow the on-screen navigation through Experience, Education, Projects, Skills, and Contact checkpoints; each checkpoint opens its matching career area and awards a collectible car sticker. The Experience Highway has an illustrated billboard for every role, including a custom World Cup trophy scene at FIFA; nearby role exhibits award additional stickers. The Project Expressway has illustrated project landmarks. Each exhibit opens its matching resume-backed detail panel when approached slowly. The same destinations remain available from the interface. Built with HTML, CSS, Canvas 2D, and vanilla JavaScript modules; no framework or runtime dependency is required.
 
 ## Run locally
 
@@ -15,11 +15,14 @@ ES modules require an HTTP server; do not open `index.html` with `file://`.
 - **W / ↑:** accelerate
 - **S / ↓:** brake, then reverse
 - **A / ←, D / →:** steer
+- **Hold Shift + W / ↑:** boost while accelerating; charge refills when released
+- **Hold Space + steer:** drift through turns and leave tire smoke
 - **E / Enter:** open the nearby destination
 - **R:** reset to the plaza
 - **Escape:** close the active panel
-- On touch screens, use the on-screen pedals and steering buttons.
+- On touch screens, use the on-screen pedals, steering, boost, and drift buttons.
 - Follow the checkpoint arrow and turn cue. Stop near each numbered checkpoint, then open it to reveal that career area and receive the next route. Progress is saved in this browser.
+- Checkpoints and role billboards award original, stylized car stickers. Checkpoint and sticker progress are saved separately in this browser.
 
 Every district is also available from the map destination list and the top navigation. Select **Portfolio view** to browse without driving.
 
@@ -44,11 +47,11 @@ Edit the matching district in `districts` in `src/content.js`. `x` and `y` are w
 
 ## Tune driving
 
-Change the `DRIVE` configuration at the top of `src/main.js`. It contains world dimensions, acceleration, braking, speed limits, steering, camera easing, and interaction thresholds. `CHECKPOINT_ORDER` controls the guided career route. The world renderer and vehicle loop are in the same module to keep this small static release easy to run.
+Change the `DRIVE` configuration at the top of `src/main.js`. It contains world dimensions, acceleration, braking, speed limits, steering, camera easing, and interaction thresholds. `CHECKPOINT_ORDER` controls the guided career route; `STICKERS`, `STADIUM`, and `FOUNTAIN` define collectible rewards and major landmarks. The world renderer and vehicle loop are in the same module to keep this small static release easy to run.
 
 ## Assets and deployment
 
-The map, billboards, employer monograms, trophy, and project illustrations are original Canvas/CSS drawings; employer monograms are not official logos. There are no third-party images and no external project screenshots are bundled. Fonts are loaded from Google Fonts with system fallbacks. Deploy the project root to any static host that supports ES modules and serves `index.html` as the entry page. Keep all links relative to this root.
+The map, billboards, employer monograms, NRG Stadium, fountain, trophy, stickers, and project illustrations are original Canvas/CSS drawings; employer monograms are not official logos. There are no third-party images and no external project screenshots are bundled. Fonts are loaded from Google Fonts with system fallbacks. Deploy the project root to any static host that supports ES modules and serves `index.html` as the entry page. Keep all links relative to this root.
 
 ## Source and privacy notes
 
