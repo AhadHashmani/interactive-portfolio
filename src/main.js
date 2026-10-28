@@ -19,13 +19,13 @@ const DRIVE = {
   exhibitOffset: 96 * WORLD_SCALE,
   horizon: 0.28,
   focalLength: 0.72,
-  maxForwardSpeed: 120,
-  maxReverseSpeed: 55,
-  acceleration: 240,
+  maxForwardSpeed: 185,
+  maxReverseSpeed: 72,
+  acceleration: 420,
   braking: 600,
-  coast: 230,
-  maxSteering: 1.1,
-  driftSteering: 1.55,
+  coast: 190,
+  maxSteering: 1.35,
+  driftSteering: 1.7,
   offRoadSpeedRatio: 0.85,
   interactionRadius: 128 * WORLD_SCALE,
   interactionExitRadius: 160 * WORLD_SCALE,
@@ -208,15 +208,15 @@ function updateStickerShelf() {
   if (!stickerShelf) return;
   const items = document.querySelector("#stickerItems");
   items.replaceChildren();
-  STICKERS.forEach((sticker) => {
-    const earned = game.earnedStickers.has(sticker.id);
-    const badge = element("span", `sticker-chip${earned ? " is-earned" : ""}`, earned ? sticker.mark : "·");
-    badge.title = earned ? `${sticker.label} sticker earned` : `${sticker.label} sticker locked`;
+  STICKERS.filter((sticker) => game.earnedStickers.has(sticker.id)).forEach((sticker) => {
+    const badge = element("span", "sticker-chip is-earned", sticker.mark);
+    badge.title = `${sticker.label} sticker earned`;
     badge.setAttribute("aria-label", badge.title);
-    if (earned) badge.style.setProperty("--sticker-color", sticker.color);
+    badge.style.setProperty("--sticker-color", sticker.color);
     items.append(badge);
   });
   document.querySelector("#stickerCount").textContent = `${game.earnedStickers.size} / ${STICKERS.length}`;
+  document.querySelector("#stickerEmpty").hidden = game.earnedStickers.size > 0;
   stickerShelf.hidden = !game.driving;
 }
 
@@ -569,7 +569,7 @@ function openSection(sectionId, route = sectionId) {
         ["W / ↑", "Accelerate"],
         ["S / ↓", "Brake, then reverse"],
         ["A / ← · D / →", "Steer"],
-        ["Hold Shift + W", "Boost while accelerating; charge refills when released"],
+        ["Shift", "Boost while moving; charge refills when released"],
         ["Hold Space + steer", "Drift through turns and leave tire smoke"],
         ["E / Enter", "Open a nearby checkpoint or exhibit"],
         ["Checkpoints", "Collect a career sticker; role billboards have their own rewards"],
@@ -654,6 +654,7 @@ function resetCar() {
   game.car.visualSteer = 0;
   game.car.driftAngle = 0;
   game.car.boosting = false;
+  game.boostCharge = 100;
   game.car.braking = false;
   game.camera.x = game.car.x;
   game.camera.y = game.car.y;
@@ -694,17 +695,19 @@ function updateCar(dt) {
   const controls = readControls();
   const car = game.car;
   const onRoad = ROAD_SEGMENTS.some((segment) => distanceToSegment(car.x, car.y, segment) < DRIVE.roadWidth * 0.57);
-  const boosting = controls.accelerate && controls.boost && game.boostCharge > 0 && car.speed >= 0;
+  const boosting = controls.boost && game.boostCharge > 0 && car.speed >= 0;
   car.boosting = boosting;
   if (boosting) game.boostCharge = Math.max(0, game.boostCharge - 58 * dt);
   else game.boostCharge = Math.min(100, game.boostCharge + 24 * dt);
   const limit = (onRoad ? DRIVE.maxForwardSpeed : DRIVE.maxForwardSpeed * DRIVE.offRoadSpeedRatio)
-    * (boosting ? 1.48 : 1);
+    * (boosting ? 1.42 : 1);
   const reverseLimit = onRoad ? DRIVE.maxReverseSpeed : DRIVE.maxReverseSpeed * DRIVE.offRoadSpeedRatio;
 
   if (controls.accelerate) {
     if (car.speed < 0) car.speed = accelerateTowardZero(car.speed, DRIVE.braking * dt);
     else car.speed = Math.min(limit, car.speed + DRIVE.acceleration * (boosting ? 2 : 1) * dt);
+  } else if (boosting) {
+    car.speed = Math.min(limit, car.speed + DRIVE.acceleration * 1.35 * dt);
   } else if (controls.brake) {
     if (car.speed > 0) car.speed = accelerateTowardZero(car.speed, DRIVE.braking * dt);
     else car.speed = Math.max(-reverseLimit, car.speed - DRIVE.acceleration * 0.7 * dt);
@@ -716,8 +719,8 @@ function updateCar(dt) {
   const steerInput = Number(controls.right) - Number(controls.left);
   car.visualSteer = steerInput;
   car.braking = controls.brake && car.speed > 0;
-  if (steerInput && Math.abs(car.speed) > 5) {
-    const speedFactor = 0.45 + 0.42 * Math.min(Math.abs(car.speed) / DRIVE.maxForwardSpeed, 1);
+  if (steerInput && Math.abs(car.speed) > 1) {
+    const speedFactor = 0.52 + 0.38 * Math.min(Math.abs(car.speed) / DRIVE.maxForwardSpeed, 1);
     const drifting = controls.drift && Math.abs(car.speed) > 28;
     car.heading += steerInput * (drifting ? DRIVE.driftSteering : DRIVE.maxSteering) * speedFactor * Math.sign(car.speed) * dt;
   }
@@ -1819,6 +1822,7 @@ function startLoop() {
 
 function setDriving(active) {
   game.driving = active;
+  driveView.classList.toggle("is-driving", active);
   mapLegend.hidden = active;
   welcomeCard.hidden = active;
   driveHud.hidden = !active;
@@ -1831,14 +1835,17 @@ function setDriving(active) {
     game.lastFrame = 0;
     document.querySelector("#resetCar").focus({ preventScroll: true });
     announce(isMobile.matches
-      ? "Driving started. Use the on-screen controls to drive."
-      : "Driving started. Use WASD or the arrow keys.");
+      ? "Driving started. Use the on-screen controls. Boost while moving; hold drift and steer."
+      : "Driving started. Use WASD to drive, Shift to boost, and Space plus steering to drift.");
   }
 }
 
 function updateTouchControls() {
   const controls = document.querySelector("#touchControls");
   controls.hidden = !isMobile.matches || !game.driving;
+  document.querySelector(".welcome-copy").textContent = isMobile.matches
+    ? "Explore five career stops. Use touch controls to steer, boost, and drift."
+    : "Explore five career stops. Hold Shift to boost, or Space + steer to drift.";
 }
 
 function handleKeyDown(event) {

@@ -15,12 +15,12 @@ ES modules require an HTTP server; do not open `index.html` with `file://`.
 - **W / ↑:** accelerate
 - **S / ↓:** brake, then reverse
 - **A / ←, D / →:** steer
-- **Hold Shift + W / ↑:** boost while accelerating; charge refills when released
+- **Hold Shift while moving:** boost; charge refills when released
 - **Hold Space + steer:** drift through turns and leave tire smoke
 - **E / Enter:** open the nearby destination
 - **R:** reset to the plaza
 - **Escape:** close the active panel
-- On touch screens, use the on-screen pedals, steering, boost, and drift buttons.
+- On touch screens, use the on-screen pedals, steering, boost, and drift buttons. Boost works independently while moving; hold drift as you steer.
 - Follow the checkpoint arrow and turn cue. Stop near each numbered checkpoint, then open it to reveal that career area and receive the next route. Progress is saved in this browser.
 - Checkpoints and role billboards award original, stylized car stickers. Checkpoint and sticker progress are saved separately in this browser.
 
