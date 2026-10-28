@@ -53,6 +53,23 @@
           <div class="map-coordinates" aria-hidden="true">AUSTIN, TX <span>·</span> 30°16' N</div>
         </div>
 
+        <aside class="checkpoint-nav" id="checkpointNav" hidden aria-label="Career checkpoint navigation">
+          <div class="checkpoint-nav-topline">
+            <span id="checkpointProgress">01 / 05 CHECKPOINTS</span>
+            <span id="checkpointDistance">— m</span>
+          </div>
+          <div class="checkpoint-nav-route">
+            <span class="checkpoint-arrow" id="checkpointArrow" aria-hidden="true">↑</span>
+            <span class="checkpoint-nav-copy">
+              <strong id="checkpointName">Experience Highway</strong>
+              <small id="checkpointDirection">TURN RIGHT</small>
+            </span>
+          </div>
+          <div class="checkpoint-progress-track" aria-hidden="true">
+            <span id="checkpointProgressFill"></span>
+          </div>
+        </aside>
+
         <aside class="map-legend" aria-label="Map districts">
           <div class="legend-heading">DESTINATIONS <span>05</span></div>
           <button type="button" data-open-section="experience"><span class="legend-index">01</span><span>Experience</span><span class="legend-arrow">↗</span></button>
@@ -67,11 +84,11 @@
           <div class="eyebrow"><span class="eyebrow-line"></span> DATA SCIENCE · ANALYTICS · ENGINEERING</div>
           <h1 id="welcomeTitle">A portfolio<br />you can <em>drive.</em></h1>
           <p class="welcome-copy">
-            A little exploration, a lot of real work. Take the wheel—or take the direct route.
+            Follow five checkpoints through my career—or take the direct route.
           </p>
           <div class="welcome-actions">
             <button class="button button-primary" id="startDriving" type="button">
-              <span aria-hidden="true">▶</span> Start driving
+              <span aria-hidden="true">▶</span> Start guided route
             </button>
             <button class="button button-text" id="welcomePortfolio" type="button">
               Browse portfolio <span aria-hidden="true">↗</span>
@@ -79,7 +96,9 @@
           </div>
           <div class="welcome-foot">
             <span class="keycap">W</span><span class="keycap">A</span><span class="keycap">S</span><span class="keycap">D</span>
-            <span>to drive</span><span class="welcome-divider">/</span><span>or pick a district</span>
+            <span class="welcome-drive-keyboard">to drive</span>
+            <span class="welcome-drive-touch">use touch controls</span>
+            <span class="welcome-divider">/</span><span>or pick a district</span>
           </div>
         </section>
 
@@ -92,7 +111,7 @@
 
         <div class="interaction-prompt" id="interactionPrompt" hidden>
           <span class="prompt-icon" aria-hidden="true">↵</span>
-          <span><strong id="promptTitle">Explore this district</strong><small>Press E or Enter to open</small></span>
+          <span><strong id="promptTitle">Explore this district</strong><small id="promptHint">Press E or Enter to open</small></span>
           <button id="promptOpen" type="button" aria-label="Open nearby destination">OPEN <span aria-hidden="true">↗</span></button>
         </div>
 

@@ -1,6 +1,6 @@
 # Portfolio Drive
 
-A responsive, resume-backed portfolio for Ahad Hashmani with an optional behind-the-car driving view and a conventional HTML portfolio. Five named, color-accented routes lead to distinct portfolio districts. The Experience Highway has an illustrated billboard for every role, including a custom World Cup trophy scene at FIFA; the Project Expressway has illustrated project landmarks. Each exhibit opens its matching resume-backed detail panel when approached slowly. The same destinations remain available from the interface. Built with HTML, CSS, Canvas 2D, and vanilla JavaScript modules; no framework or runtime dependency is required.
+A responsive, resume-backed portfolio for Ahad Hashmani with an optional behind-the-car driving view and a conventional HTML portfolio. Five named, color-accented routes lead to distinct portfolio districts. Follow the on-screen navigation through Experience, Education, Projects, Skills, and Contact checkpoints; each checkpoint opens its matching career area. The Experience Highway has an illustrated billboard for every role, including a custom World Cup trophy scene at FIFA; the Project Expressway has illustrated project landmarks. Each exhibit opens its matching resume-backed detail panel when approached slowly. The same destinations remain available from the interface. Built with HTML, CSS, Canvas 2D, and vanilla JavaScript modules; no framework or runtime dependency is required.
 
 ## Run locally
 
@@ -19,6 +19,7 @@ ES modules require an HTTP server; do not open `index.html` with `file://`.
 - **R:** reset to the plaza
 - **Escape:** close the active panel
 - On touch screens, use the on-screen pedals and steering buttons.
+- Follow the checkpoint arrow and turn cue. Stop near each numbered checkpoint, then open it to reveal that career area and receive the next route. Progress is saved in this browser.
 
 Every district is also available from the map destination list and the top navigation. Select **Portfolio view** to browse without driving.
 
@@ -43,7 +44,7 @@ Edit the matching district in `districts` in `src/content.js`. `x` and `y` are w
 
 ## Tune driving
 
-Change the `DRIVE` configuration at the top of `src/main.js`. It contains world dimensions, acceleration, braking, speed limits, steering, camera easing, and interaction thresholds. The world renderer and vehicle loop are in the same module to keep this small static release easy to run.
+Change the `DRIVE` configuration at the top of `src/main.js`. It contains world dimensions, acceleration, braking, speed limits, steering, camera easing, and interaction thresholds. `CHECKPOINT_ORDER` controls the guided career route. The world renderer and vehicle loop are in the same module to keep this small static release easy to run.
 
 ## Assets and deployment
 

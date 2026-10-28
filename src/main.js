@@ -18,19 +18,22 @@ const DRIVE = {
   exhibitOffset: 96,
   horizon: 0.28,
   focalLength: 0.72,
-  maxForwardSpeed: 220,
-  maxReverseSpeed: 92,
-  acceleration: 230,
-  braking: 530,
-  coast: 110,
-  maxSteering: 2.1,
-  offRoadSpeedRatio: 0.58,
+  maxForwardSpeed: 150,
+  maxReverseSpeed: 70,
+  acceleration: 300,
+  braking: 640,
+  coast: 190,
+  maxSteering: 1.65,
+  offRoadSpeedRatio: 0.72,
   interactionRadius: 128,
   interactionExitRadius: 160,
   interactionSpeed: 48,
   cameraSmoothing: 8.5,
   fixedStep: 1 / 60,
 };
+
+const CHECKPOINT_ORDER = ["experience", "education", "projects", "skills", "contact"];
+const CHECKPOINT_STORAGE_KEY = "portfolio-drive-checkpoints-v1";
 
 const ROAD_SEGMENTS = [
   { id: "projects", name: "PROJECT EXPRESSWAY", x1: 0, y1: 510, x2: 780, y2: 510, color: "#c4a4e5" },
@@ -86,11 +89,12 @@ const game = {
   activePrompt: null,
   previousPrompt: null,
   district: null,
+  checkpointIndex: 0,
   car: { x: 780, y: 510, heading: -Math.PI / 2, speed: 0, visualSteer: 0, braking: false },
   camera: { x: 780, y: 510, heading: -Math.PI / 2 },
   keys: new Set(),
   pointers: new Map(),
-  visited: new Set(),
+  completedCheckpoints: new Set(),
 };
 
 const projection = {
@@ -318,12 +322,12 @@ function appendDialogActions(container, actions) {
   const row = element("div", "dialog-actions");
   actions.forEach((action) => {
     if (action.kind === "drive") {
-      const button = element("button", "", action.label);
+      const button = element("button", "");
       button.type = "button";
-      button.addEventListener("click", () => {
-        driveToDistrict(action.district);
-        closeDialog();
-      });
+      button.textContent = game.checkpointIndex >= CHECKPOINT_ORDER.length
+        ? "Return to the drive"
+        : game.driving ? "Continue to next checkpoint" : "Start guided route";
+      button.addEventListener("click", resumeCheckpointRoute);
       row.append(button);
     } else {
       appendExternalLink(row, action.href, action.label);
@@ -350,7 +354,7 @@ function openProject(projectId, route = `project/${projectId}`) {
   if (!project) {
     openDialog("projects", "Project not found", (container) => {
       appendHeading(container, "PROJECT ARCHIVE", "Project not found", "That project link does not match a project in this portfolio.");
-      appendDialogActions(container, [{ kind: "drive", district: "projects", label: "Go to Project Expressway" }]);
+      appendDialogActions(container, [{ kind: "drive" }]);
     }, "projects");
     return;
   }
@@ -403,7 +407,7 @@ function openSection(sectionId, route = sectionId) {
         entry.append(makeTagRow(item.tools));
         container.append(entry);
       });
-      appendDialogActions(container, [{ kind: "drive", district: "experience", label: "Drive to Experience Highway" }]);
+      appendDialogActions(container, [{ kind: "drive" }]);
     });
     return;
   }
@@ -419,7 +423,7 @@ function openSection(sectionId, route = sectionId) {
         container.append(entry);
       });
       container.append(element("p", "dialog-note", "LaunchCode appears in the original portfolio concept, but the supplied education records do not establish a program or credential."));
-      appendDialogActions(container, [{ kind: "drive", district: "education", label: "Drive to Education Avenue" }]);
+      appendDialogActions(container, [{ kind: "drive" }]);
     });
     return;
   }
@@ -435,7 +439,7 @@ function openSection(sectionId, route = sectionId) {
         entry.append(button, element("p", "dialog-subtitle", `${project.status} · ${project.summary}`));
         container.append(entry);
       });
-      appendDialogActions(container, [{ kind: "drive", district: "projects", label: "Drive to Project Expressway" }]);
+      appendDialogActions(container, [{ kind: "drive" }]);
     });
     return;
   }
@@ -448,7 +452,7 @@ function openSection(sectionId, route = sectionId) {
         entry.append(element("h3", "", group.name), makeTagRow(group.skills), element("p", "", group.evidence));
         container.append(entry);
       });
-      appendDialogActions(container, [{ kind: "drive", district: "skills", label: "Drive to Skills Garage" }]);
+      appendDialogActions(container, [{ kind: "drive" }]);
     });
     return;
   }
@@ -460,7 +464,7 @@ function openSection(sectionId, route = sectionId) {
       appendDialogActions(container, [
         { kind: "link", href: profile.linkedin, label: "Connect on LinkedIn" },
         { kind: "link", href: profile.github, label: "Explore GitHub" },
-        ...(district ? [{ kind: "drive", district: sectionId, label: "Drive to Contact Pit Stop" }] : []),
+        ...(district ? [{ kind: "drive" }] : []),
       ]);
     });
     return;
@@ -468,12 +472,13 @@ function openSection(sectionId, route = sectionId) {
 
   if (sectionId === "help") {
     openDialog("help", "Controls", (container) => {
-      appendHeading(container, "DRIVING MANUAL", "Controls", "Driving is optional. Every section is available from the navigation.");
+      appendHeading(container, "DRIVING MANUAL", "Controls", "Follow the next checkpoint to tour each career area. Driving is optional; every section is also available from the navigation.");
       const rows = [
         ["W / ↑", "Accelerate"],
         ["S / ↓", "Brake, then reverse"],
         ["A / ← · D / →", "Steer"],
-        ["E / Enter", "Open the nearby destination"],
+        ["E / Enter", "Open a nearby checkpoint or exhibit"],
+        ["Route panel", "Follow the arrow to the next career checkpoint"],
         ["R", "Reset car to Welcome Plaza"],
         ["Escape", "Close this panel"],
       ];
@@ -529,30 +534,19 @@ function showDrive(showWelcome = false) {
     driveHelp.hidden = true;
   }
   updateTouchControls();
+  updateCheckpointNavigation();
   window.scrollTo({ top: 0, behavior: reducedMotion.matches ? "auto" : "smooth" });
 }
 
-function driveToDistrict(districtId) {
-  const district = districts.find((item) => item.id === districtId);
-  if (!district) return;
+function resumeCheckpointRoute() {
+  if (game.dialogOpen) closeDialog(true);
   showDrive(false);
-  game.car.x = district.x;
-  game.car.y = district.y;
-  game.car.speed = 0;
-  game.car.heading = -Math.PI / 2;
-  game.car.visualSteer = 0;
-  game.camera.x = district.x;
-  game.camera.y = district.y;
-  game.camera.heading = game.car.heading;
-  game.driving = true;
-  welcomeCard.hidden = true;
-  driveHud.hidden = false;
-  driveHelp.hidden = false;
-  updateTouchControls();
-  game.visited.add(districtId);
-  safeStorage.set("portfolio-drive-visited", [...game.visited].join(","));
-  clearInput();
-  announce(`Driving to ${district.title}`);
+  setDriving(true);
+  history.pushState({ portfolioDrive: true }, "", "#home");
+  const checkpoint = getNextCheckpoint();
+  announce(checkpoint
+    ? `Follow navigation to ${checkpoint.title}.`
+    : "All career checkpoints are complete. Keep exploring the exhibits.");
 }
 
 function resetCar() {
@@ -617,7 +611,7 @@ function updateCar(dt) {
   car.visualSteer = steerInput;
   car.braking = controls.brake && car.speed > 0;
   if (steerInput && Math.abs(car.speed) > 5) {
-    const speedFactor = 0.24 + 0.76 * Math.min(Math.abs(car.speed) / 150, 1);
+    const speedFactor = 0.5 + 0.4 * Math.min(Math.abs(car.speed) / 100, 1);
     car.heading += steerInput * DRIVE.maxSteering * speedFactor * Math.sign(car.speed) * dt;
   }
 
@@ -663,13 +657,14 @@ function distanceToSegment(x, y, segment) {
 
 function updateInteraction() {
   if (!game.driving || game.dialogOpen) return;
+  const nextCheckpoint = getNextCheckpoint();
   const roadPositionedExhibits = exhibits.map((exhibit) => ({
     ...exhibit,
     ...exhibitWorldPoint(exhibit),
     targetType: "exhibit",
   }));
   const destinations = [
-    ...districts.map((target) => ({ ...target, targetType: "district" })),
+    ...(nextCheckpoint ? [{ ...nextCheckpoint, targetType: "checkpoint" }] : []),
     ...roadPositionedExhibits,
   ];
   const eligible = destinations
@@ -681,9 +676,19 @@ function updateInteraction() {
   const prompt = document.querySelector("#interactionPrompt");
   prompt.hidden = !next;
   if (next) {
-    document.querySelector("#promptTitle").textContent = next.targetType === "exhibit" ? `Explore ${next.title}` : next.title;
+    document.querySelector("#promptTitle").textContent = next.targetType === "checkpoint"
+      ? `Checkpoint: ${next.title}`
+      : `Explore ${next.title}`;
+    document.querySelector("#promptHint").textContent = isMobile.matches
+      ? next.targetType === "checkpoint" ? "Tap E to explore this career area" : "Tap E to open"
+      : next.targetType === "checkpoint" ? "Press E or Enter to explore this career area" : "Press E or Enter to open";
+    document.querySelector("#promptOpen").innerHTML = next.targetType === "checkpoint"
+      ? 'ARRIVE <span aria-hidden="true">↗</span>'
+      : 'OPEN <span aria-hidden="true">↗</span>';
     if (game.previousPrompt !== next.id) {
-      announce(`${next.title} nearby. Press E or Enter to explore.`);
+      announce(isMobile.matches
+        ? `${next.title} checkpoint nearby. Tap E to explore.`
+        : `${next.title} checkpoint nearby. Press E or Enter to explore.`);
       game.previousPrompt = next.id;
     }
   } else {
@@ -693,14 +698,79 @@ function updateInteraction() {
 
 function openActivePrompt() {
   if (!game.activePrompt) return;
+  if (game.activePrompt.targetType === "checkpoint") {
+    const checkpoint = game.activePrompt;
+    const completedNumber = game.checkpointIndex + 1;
+    game.checkpointIndex += 1;
+    game.completedCheckpoints.add(checkpoint.id);
+    safeStorage.set(CHECKPOINT_STORAGE_KEY, [...game.completedCheckpoints].join(","));
+    const nextCheckpoint = getNextCheckpoint();
+    game.activePrompt = null;
+    game.previousPrompt = null;
+    updateCheckpointNavigation();
+    openSection(checkpoint.id);
+    announce(nextCheckpoint
+      ? `Checkpoint ${completedNumber} reached. Next: ${nextCheckpoint.shortTitle}.`
+      : `All ${CHECKPOINT_ORDER.length} career checkpoints reached. Journey complete.`);
+    return;
+  }
   if (game.activePrompt.targetType === "exhibit") {
     if (game.activePrompt.type === "experience") openExperienceItem(game.activePrompt.contentId);
     else openProject(game.activePrompt.contentId);
     return;
   }
-  game.visited.add(game.activePrompt.id);
-  safeStorage.set("portfolio-drive-visited", [...game.visited].join(","));
   openSection(game.activePrompt.id);
+}
+
+function getNextCheckpoint() {
+  while (game.checkpointIndex < CHECKPOINT_ORDER.length
+    && game.completedCheckpoints.has(CHECKPOINT_ORDER[game.checkpointIndex])) {
+    game.checkpointIndex += 1;
+  }
+  const nextId = CHECKPOINT_ORDER[game.checkpointIndex];
+  return districts.find((district) => district.id === nextId) ?? null;
+}
+
+function updateCheckpointNavigation() {
+  const panel = document.querySelector("#checkpointNav");
+  if (!panel) return;
+  if (!game.driving) {
+    panel.hidden = true;
+    return;
+  }
+  panel.hidden = false;
+  const checkpoint = getNextCheckpoint();
+  const progress = document.querySelector("#checkpointProgress");
+  const name = document.querySelector("#checkpointName");
+  const distanceLabel = document.querySelector("#checkpointDistance");
+  const directionLabel = document.querySelector("#checkpointDirection");
+  const arrow = document.querySelector("#checkpointArrow");
+  const fill = document.querySelector("#checkpointProgressFill");
+  progress.textContent = `${String(Math.min(game.checkpointIndex + 1, CHECKPOINT_ORDER.length)).padStart(2, "0")} / ${String(CHECKPOINT_ORDER.length).padStart(2, "0")} CHECKPOINTS`;
+  fill.style.width = `${(game.checkpointIndex / CHECKPOINT_ORDER.length) * 100}%`;
+  if (!checkpoint) {
+    name.textContent = "Career route complete";
+    distanceLabel.textContent = "5 / 5";
+    directionLabel.textContent = "ALL AREAS EXPLORED";
+    arrow.hidden = true;
+    return;
+  }
+  arrow.hidden = false;
+  name.textContent = checkpoint.title;
+  const deltaX = checkpoint.x - game.car.x;
+  const deltaY = checkpoint.y - game.car.y;
+  const remaining = Math.hypot(deltaX, deltaY);
+  const bearing = Math.atan2(deltaY, deltaX);
+  const relativeBearing = Math.atan2(
+    Math.sin(bearing - game.car.heading),
+    Math.cos(bearing - game.car.heading),
+  );
+  const angleDegrees = Math.abs(relativeBearing * 180 / Math.PI);
+  directionLabel.textContent = remaining < DRIVE.interactionRadius
+    ? Math.abs(game.car.speed) < DRIVE.interactionSpeed ? "PRESS E TO EXPLORE" : "SLOW DOWN TO ARRIVE"
+    : angleDegrees < 22 ? "CONTINUE AHEAD" : relativeBearing > 0 ? "TURN RIGHT" : "TURN LEFT";
+  distanceLabel.textContent = remaining < DRIVE.interactionRadius ? "NEARBY" : `${Math.round(remaining)} m`;
+  arrow.style.transform = `rotate(${remaining < 20 ? 0 : relativeBearing}rad)`;
 }
 
 function resizeCanvas() {
@@ -762,6 +832,7 @@ function drawWorld() {
     .sort((a, b) => b.depth - a.depth)
     .forEach(({ exhibit }) => drawExhibit(exhibit));
   districts.forEach(drawDistrict);
+  drawCheckpointBeacon(getNextCheckpoint());
   drawPlayerCar();
 }
 
@@ -1290,6 +1361,36 @@ function drawDistrict(district) {
   drawSign(district);
 }
 
+function drawCheckpointBeacon(checkpoint) {
+  if (!checkpoint) return;
+  const point = projectWorldPoint(checkpoint.x, checkpoint.y);
+  if (!point || point.x < -90 || point.x > game.width + 90) return;
+  const scale = clamp(point.scale, .55, 1.5);
+  const radius = clamp(13 * scale, 7, 18);
+  const beaconTop = point.y - 62 * scale;
+  context.save();
+  context.strokeStyle = "rgba(255, 232, 160, .5)";
+  context.lineWidth = Math.max(1, scale);
+  context.beginPath();
+  context.moveTo(point.x, beaconTop);
+  context.lineTo(point.x, point.y - radius);
+  context.stroke();
+  context.fillStyle = "rgba(255, 232, 160, .16)";
+  context.beginPath();
+  context.arc(point.x, point.y - radius, radius * 1.8, 0, Math.PI * 2);
+  context.fill();
+  context.fillStyle = "#f4d477";
+  context.beginPath();
+  context.arc(point.x, point.y - radius, radius, 0, Math.PI * 2);
+  context.fill();
+  context.fillStyle = "#243326";
+  context.font = `600 ${clamp(10 * scale, 7, 11)}px 'DM Mono', monospace`;
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+  context.fillText(String(game.checkpointIndex + 1).padStart(2, "0"), point.x, point.y - radius);
+  context.restore();
+}
+
 function drawPlayerCar() {
   const width = clamp(game.width * .052, 39, 70);
   const length = width * 1.72;
@@ -1381,6 +1482,7 @@ function frame(timestamp) {
     game.district = nearestDistrict.range < DRIVE.interactionExitRadius * 1.7 ? nearestDistrict.district : null;
     document.querySelector("#currentDistrict").textContent = game.district?.shortTitle.toUpperCase() ?? "WELCOME PLAZA";
     document.querySelector("#drivingStatus").textContent = game.district ? `EXPLORING ${game.district.shortTitle.toUpperCase()}` : "CRUISING PORTFOLIO DRIVE";
+    updateCheckpointNavigation();
   }
   if (!driveView.hidden && game.driving && !game.dialogOpen) render();
   requestAnimationFrame(frame);
@@ -1398,10 +1500,13 @@ function setDriving(active) {
   driveHud.hidden = !active;
   driveHelp.hidden = !active;
   updateTouchControls();
+  updateCheckpointNavigation();
   if (active) {
     game.lastFrame = 0;
     document.querySelector("#resetCar").focus({ preventScroll: true });
-    announce("Driving started. Use WASD or the arrow keys.");
+    announce(isMobile.matches
+      ? "Driving started. Use the on-screen controls to drive."
+      : "Driving started. Use WASD or the arrow keys.");
   }
 }
 
@@ -1586,8 +1691,13 @@ function installEvents() {
 }
 
 function initialize() {
-  const storedVisits = safeStorage.get("portfolio-drive-visited");
-  if (storedVisits) storedVisits.split(",").filter(Boolean).forEach((id) => game.visited.add(id));
+  const storedCheckpoints = safeStorage.get(CHECKPOINT_STORAGE_KEY);
+  if (storedCheckpoints) {
+    storedCheckpoints.split(",")
+      .filter((id) => CHECKPOINT_ORDER.includes(id))
+      .forEach((id) => game.completedCheckpoints.add(id));
+  }
+  getNextCheckpoint();
   hydratePortfolioCopy();
   configureTouchControls();
   installEvents();

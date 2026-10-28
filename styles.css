@@ -60,6 +60,16 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--lime); outline-
 .live-dot, .availability-dot { display: inline-block; flex: 0 0 auto; width: 7px; height: 7px; border-radius: 50%; background: #cbf19d; box-shadow: 0 0 0 4px rgba(203, 241, 157, .18); }
 .map-coordinates { color: rgba(246, 247, 236, .72); }
 .map-coordinates span { color: var(--lime); }
+.checkpoint-nav { position: absolute; z-index: 5; top: 138px; left: 50%; width: min(270px, calc(100% - 32px)); padding: 11px 14px 12px; transform: translateX(-50%); border: 1px solid rgba(245,248,235,.2); background: rgba(16,26,18,.9); color: var(--ink); box-shadow: 0 12px 34px rgba(12,24,15,.2); backdrop-filter: blur(12px); pointer-events: none; }
+.checkpoint-nav-topline { display: flex; justify-content: space-between; gap: 12px; color: #aab5a7; font: 8px var(--mono); letter-spacing: .08em; }
+.checkpoint-nav-topline span:last-child { color: var(--lime); white-space: nowrap; }
+.checkpoint-nav-route { display: flex; align-items: center; gap: 11px; margin-top: 9px; }
+.checkpoint-arrow { display: grid; flex: 0 0 30px; place-items: center; width: 30px; height: 30px; border: 1px solid rgba(194,237,136,.45); color: var(--lime); font: 20px var(--sans); transition: transform .12s linear; }
+.checkpoint-nav-copy { display: flex; min-width: 0; flex-direction: column; gap: 4px; }
+.checkpoint-nav-copy strong { overflow: hidden; color: #f3f1e9; font: 600 10px var(--sans); text-overflow: ellipsis; white-space: nowrap; }
+.checkpoint-nav-copy small { color: #a9b5a5; font: 8px var(--mono); letter-spacing: .08em; }
+.checkpoint-progress-track { height: 2px; margin-top: 10px; overflow: hidden; background: rgba(238,240,226,.13); }
+.checkpoint-progress-track span { display: block; width: 0; height: 100%; background: var(--lime); transition: width .25s ease; }
 .world-label { position: absolute; z-index: -1; color: rgba(248, 252, 238, .78); font: 9px var(--mono); letter-spacing: .12em; text-shadow: 0 1px 8px rgba(12, 22, 14, .6); pointer-events: none; }
 .world-label-education { top: 24%; left: 51%; }
 .world-label-projects { top: 54%; left: 17%; }
@@ -98,6 +108,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--lime); outline-
 .keycap { display: grid; place-items: center; width: 18px; height: 19px; border: 1px solid rgba(239, 244, 231, .3); color: #e6ebdf; font-size: 9px; }
 .welcome-foot > span:last-child { margin-left: 4px; }
 .welcome-divider { padding: 0 5px; color: #667267; }
+.welcome-drive-touch { display: none; }
 
 .drive-hud { position: absolute; top: 138px; left: clamp(24px, 5vw, 76px); z-index: 5; display: flex; align-items: center; gap: 17px; min-height: 54px; padding: 8px 11px 8px 15px; background: rgba(17, 26, 19, .91); border: 1px solid rgba(240, 245, 230, .18); box-shadow: 0 12px 34px rgba(12, 24, 15, .2); backdrop-filter: blur(12px); }
 .hud-speed { display: flex; flex-direction: column; color: var(--lime); font: 19px var(--mono); line-height: 1; }
@@ -257,6 +268,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--lime); outline-
   .map-topline { top: 122px; left: 20px; right: 20px; }
   .map-status, .map-coordinates { font-size: 8px; }
   .map-coordinates { display: none; }
+  .checkpoint-nav { top: 211px; width: min(300px, calc(100% - 30px)); }
   .welcome-card { top: 49%; left: 50%; width: min(440px, calc(100% - 36px)); transform: translate(-50%, -50%); padding: 27px 25px 22px; }
   @keyframes card-in { from { opacity: 0; transform: translate(-50%, calc(-50% + 8px)); } to { opacity: 1; transform: translate(-50%, -50%); } }
   .welcome-card h1 { margin-top: 19px; font-size: clamp(49px, 14vw, 68px); }
@@ -265,6 +277,9 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--lime); outline-
   .button-primary { padding: 0 13px; font-size: 9px; }
   .button-text { font-size: 10px; }
   .welcome-foot { margin-top: 22px; font-size: 8px; }
+  .welcome-drive-keyboard { display: none; }
+  .welcome-drive-touch { display: inline; }
+  .welcome-foot .keycap { display: none; }
   .map-legend { display: none; }
   .world-label { display: none; }
   .map-credit { right: 17px; bottom: 18px; font-size: 7px; }
@@ -307,6 +322,18 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--lime); outline-
 }
 @media (hover: none) and (pointer: coarse) {
   .map-legend button { padding-top: 11px; padding-bottom: 11px; }
+  .welcome-drive-keyboard, .drive-help-keyboard { display: none; }
+  .welcome-drive-touch { display: inline; }
+  .welcome-foot .keycap { display: none; }
+  .drive-help-touch { display: inline; }
+  .touch-controls { position: absolute; z-index: 5; right: 18px; bottom: 22px; left: 18px; display: flex; align-items: end; justify-content: space-between; pointer-events: none; touch-action: none; }
+  .touch-steering, .touch-pedals { display: flex; gap: 8px; }
+  .touch-controls button { display: grid; place-items: center; width: 50px; height: 50px; border: 1px solid rgba(244,248,234,.42); border-radius: 50%; background: rgba(18,28,20,.75); color: #f4f5ec; font-size: 19px; box-shadow: 0 5px 18px rgba(10,18,11,.25); pointer-events: auto; touch-action: none; user-select: none; }
+  .touch-controls button:active { background: rgba(194,237,136,.3); border-color: var(--lime); }
+  .touch-controls .touch-accelerate { border-color: rgba(194,237,136,.8); background: rgba(194,237,136,.92); color: #172018; }
+  .touch-controls .touch-interact { position: absolute; right: 8px; bottom: 60px; width: 40px; height: 40px; color: var(--lime); font: 12px var(--mono); }
+  .interaction-prompt { bottom: 145px; }
+  .drive-help { bottom: 82px; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
