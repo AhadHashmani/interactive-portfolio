@@ -19,9 +19,9 @@ const DRIVE = {
   exhibitOffset: 96 * WORLD_SCALE,
   horizon: 0.28,
   focalLength: 0.72,
-  maxForwardSpeed: 185,
+  maxForwardSpeed: 245,
   maxReverseSpeed: 72,
-  acceleration: 420,
+  acceleration: 540,
   braking: 600,
   coast: 190,
   maxSteering: 1.35,
@@ -93,7 +93,7 @@ const BUILDINGS = [
   { x: 1520, y: 225, w: 134, d: 98, h: 82, color: "#d3d0b7", label: "CREATIVE HUB" },
 ];
 
-const STADIUM = { x: 800, y: 30, w: 370, d: 260, h: 78 };
+const STADIUM = { x: 1200, y: 200, w: 340, d: 230, h: 96 };
 const FOUNTAIN = { x: 900, y: 850, radius: 34 };
 
 function scaleWorldLayout() {
@@ -919,7 +919,7 @@ function resizeCanvas() {
   render();
 }
 
-function projectWorldPoint(x, y) {
+function projectWorldPoint(x, y, elevation = 0) {
   const relativeX = x - projection.cameraX;
   const relativeY = y - projection.cameraY;
   const depth = relativeX * projection.forwardX + relativeY * projection.forwardY;
@@ -928,7 +928,7 @@ function projectWorldPoint(x, y) {
   const scale = projection.focal / depth;
   return {
     x: game.width / 2 + lateral * scale,
-    y: game.height * DRIVE.horizon + projection.focal * DRIVE.cameraHeight / depth,
+    y: game.height * DRIVE.horizon + projection.focal * (DRIVE.cameraHeight - elevation) / depth,
     depth,
     scale,
   };
@@ -958,9 +958,21 @@ function drawWorld() {
   drawDistantLandscape();
   drawRoads();
   drawTrees();
-  BUILDINGS.forEach(drawBuilding);
-  drawFountain();
-  drawNRGStadium();
+  const structures = [
+    ...BUILDINGS.map((building) => ({
+      depth: projectedDepth(building.x + building.w / 2, building.y + building.d / 2),
+      draw: () => drawBuilding(building),
+    })),
+    {
+      depth: projectedDepth(STADIUM.x + STADIUM.w / 2, STADIUM.y + STADIUM.d / 2),
+      draw: drawStadiumPerspective,
+    },
+    {
+      depth: projectedDepth(FOUNTAIN.x, FOUNTAIN.y),
+      draw: drawFountainPerspective,
+    },
+  ];
+  structures.sort((a, b) => b.depth - a.depth).forEach((structure) => structure.draw());
   drawRouteSigns();
   exhibits
     .map((exhibit) => ({ exhibit, depth: (exhibit.x - projection.cameraX) * projection.forwardX + (exhibit.y - projection.cameraY) * projection.forwardY }))
@@ -970,6 +982,58 @@ function drawWorld() {
   drawCheckpointBeacon(getNextCheckpoint());
   drawCarEffects();
   drawPlayerCar();
+}
+
+function projectedDepth(x, y) {
+  return (x - projection.cameraX) * projection.forwardX + (y - projection.cameraY) * projection.forwardY;
+}
+
+function projectEllipse(x, y, radiusX, radiusY, elevation = 0, steps = 48) {
+  const worldPoints = Array.from({ length: steps }, (_, index) => {
+    const angle = (index / steps) * Math.PI * 2;
+    return {
+      x: x + Math.cos(angle) * radiusX,
+      y: y + Math.sin(angle) * radiusY,
+      elevation,
+    };
+  });
+  const nearDepth = 8.1;
+  const farDepth = 1800 * WORLD_SCALE - 0.1;
+  let clipped = worldPoints;
+  for (const [boundary, keepPoint] of [
+    [nearDepth, (depth) => depth >= nearDepth],
+    [farDepth, (depth) => depth <= farDepth],
+  ]) {
+    const output = [];
+    clipped.forEach((point, index) => {
+      const previous = clipped[(index + clipped.length - 1) % clipped.length];
+      const pointDepth = projectedDepth(point.x, point.y);
+      const previousDepth = projectedDepth(previous.x, previous.y);
+      const pointInside = keepPoint(pointDepth);
+      const previousInside = keepPoint(previousDepth);
+      if (pointInside !== previousInside) {
+        const ratio = (boundary - previousDepth) / (pointDepth - previousDepth);
+        output.push({
+          x: previous.x + (point.x - previous.x) * ratio,
+          y: previous.y + (point.y - previous.y) * ratio,
+          elevation,
+        });
+      }
+      if (pointInside) output.push(point);
+    });
+    clipped = output;
+    if (clipped.length < 3) return [null];
+  }
+  return clipped.map((point) => projectWorldPoint(point.x, point.y, point.elevation));
+}
+
+function traceProjectedPoints(points, reverse = false) {
+  const ordered = reverse ? [...points].reverse() : points;
+  ordered.forEach((point, index) => {
+    if (index === 0) context.moveTo(point.x, point.y);
+    else context.lineTo(point.x, point.y);
+  });
+  context.closePath();
 }
 
 function drawDistantLandscape() {
@@ -1298,6 +1362,173 @@ function drawNRGStadium() {
   context.textBaseline = "middle";
   context.font = `700 ${clamp(15 * scale, 8, 20)}px 'DM Mono', monospace`;
   context.fillText("NRG STADIUM", 0, -ry * .68 - height * .26 + Math.max(10 * scale, 6), rx * .64);
+  context.restore();
+}
+
+function drawFountainPerspective() {
+  const center = projectWorldPoint(FOUNTAIN.x, FOUNTAIN.y);
+  if (!center || center.x < -140 || center.x > game.width + 140) return;
+  const rim = projectEllipse(FOUNTAIN.x, FOUNTAIN.y, FOUNTAIN.radius * 1.55, FOUNTAIN.radius * 1.12);
+  const water = projectEllipse(FOUNTAIN.x, FOUNTAIN.y, FOUNTAIN.radius * 1.28, FOUNTAIN.radius * 0.9, 2);
+  if ([...rim, ...water].some((point) => !point)) return;
+  const pedestal = projectWorldPoint(FOUNTAIN.x, FOUNTAIN.y, 10);
+  const jetTop = projectWorldPoint(FOUNTAIN.x, FOUNTAIN.y, 72);
+  const jetControl = projectWorldPoint(FOUNTAIN.x + 5, FOUNTAIN.y, 46);
+  if (!pedestal || !jetTop || !jetControl) return;
+
+  context.save();
+  context.fillStyle = "rgba(27, 44, 31, .22)";
+  context.beginPath();
+  traceProjectedPoints(rim);
+  context.fill();
+  context.fillStyle = "#d5cfb6";
+  context.beginPath();
+  traceProjectedPoints(rim);
+  context.fill();
+  context.fillStyle = "#448f8d";
+  context.beginPath();
+  traceProjectedPoints(water);
+  context.fill();
+
+  const ripple = projectEllipse(FOUNTAIN.x, FOUNTAIN.y, FOUNTAIN.radius * 0.76, FOUNTAIN.radius * 0.52, 4);
+  if (ripple.every(Boolean)) {
+    context.strokeStyle = "rgba(219, 250, 231, .7)";
+    context.lineWidth = Math.max(1, center.scale * 2);
+    context.beginPath();
+    traceProjectedPoints(ripple);
+    context.stroke();
+  }
+  context.strokeStyle = "rgba(224, 252, 240, .84)";
+  context.lineWidth = Math.max(1, center.scale * 2.5);
+  context.beginPath();
+  context.moveTo(pedestal.x, pedestal.y);
+  context.quadraticCurveTo(jetControl.x, jetControl.y, jetTop.x, jetTop.y);
+  context.stroke();
+  context.fillStyle = "#ded4b6";
+  context.beginPath();
+  context.ellipse(pedestal.x, pedestal.y, Math.max(2, center.scale * 14), Math.max(1, center.scale * 7), 0, 0, Math.PI * 2);
+  context.fill();
+  context.restore();
+}
+
+function drawStadiumPerspective() {
+  const centerX = STADIUM.x + STADIUM.w / 2;
+  const centerY = STADIUM.y + STADIUM.d / 2;
+  const center = projectWorldPoint(centerX, centerY);
+  if (!center || center.x < -STADIUM.w || center.x > game.width + STADIUM.w) return;
+
+  const radiusX = STADIUM.w * 0.5;
+  const radiusY = STADIUM.d * 0.5;
+  const roofHeight = STADIUM.h;
+  const segments = 48;
+  const ground = projectEllipse(centerX, centerY, radiusX, radiusY, 0, segments);
+  const top = projectEllipse(centerX, centerY, radiusX, radiusY, roofHeight, segments);
+  const roofOpening = projectEllipse(centerX, centerY, radiusX * 0.57, radiusY * 0.5, roofHeight, segments);
+  const bowlTop = projectEllipse(centerX, centerY, radiusX * 0.59, radiusY * 0.52, roofHeight * 0.72, segments);
+  const bowlBase = projectEllipse(centerX, centerY, radiusX * 0.49, radiusY * 0.41, 12, segments);
+  const field = projectEllipse(centerX, centerY, radiusX * 0.47, radiusY * 0.38, 8, segments);
+  const shadow = projectEllipse(centerX, centerY, radiusX * 1.1, radiusY * 1.1, 0, segments);
+  if ([...ground, ...top, ...roofOpening, ...bowlTop, ...bowlBase, ...field, ...shadow].some((point) => !point)) return;
+
+  context.save();
+  context.fillStyle = "rgba(30, 43, 34, .22)";
+  context.beginPath();
+  traceProjectedPoints(shadow);
+  context.fill();
+
+  for (let index = 0; index < ground.length; index += 1) {
+    const next = (index + 1) % ground.length;
+    const nearSide = ground[index].depth < center.depth;
+    context.fillStyle = nearSide
+      ? index % 2 ? "#58685d" : "#718176"
+      : index % 2 ? "#7b897d" : "#8a9588";
+    context.beginPath();
+    context.moveTo(ground[index].x, ground[index].y);
+    context.lineTo(ground[next].x, ground[next].y);
+    context.lineTo(top[next].x, top[next].y);
+    context.lineTo(top[index].x, top[index].y);
+    context.closePath();
+    context.fill();
+    context.strokeStyle = "rgba(38, 53, 44, .25)";
+    context.lineWidth = 1;
+    context.stroke();
+  }
+
+  context.fillStyle = "#35443a";
+  context.beginPath();
+  traceProjectedPoints(bowlTop);
+  traceProjectedPoints(bowlBase, true);
+  context.fill("evenodd");
+  context.fillStyle = "#b09b7d";
+  context.beginPath();
+  const upperSeats = projectEllipse(centerX, centerY, radiusX * 0.565, radiusY * 0.49, roofHeight * 0.62, segments);
+  const lowerSeats = projectEllipse(centerX, centerY, radiusX * 0.52, radiusY * 0.45, roofHeight * 0.4, segments);
+  if (upperSeats.every(Boolean) && lowerSeats.every(Boolean)) {
+    traceProjectedPoints(upperSeats);
+    traceProjectedPoints(lowerSeats, true);
+    context.fill("evenodd");
+  }
+  context.fillStyle = "#426e4e";
+  context.beginPath();
+  traceProjectedPoints(field);
+  context.fill();
+
+  const pitch = [
+    projectWorldPoint(centerX - radiusX * 0.3, centerY - radiusY * 0.22, 9),
+    projectWorldPoint(centerX + radiusX * 0.3, centerY - radiusY * 0.22, 9),
+    projectWorldPoint(centerX + radiusX * 0.3, centerY + radiusY * 0.22, 9),
+    projectWorldPoint(centerX - radiusX * 0.3, centerY + radiusY * 0.22, 9),
+  ];
+  if (pitch.every(Boolean)) {
+    context.strokeStyle = "rgba(236, 238, 205, .72)";
+    context.lineWidth = Math.max(1, center.scale * 1.6);
+    context.beginPath();
+    traceProjectedPoints(pitch);
+    context.stroke();
+    const halfway = projectWorldPoint(centerX, centerY, 9);
+    const circle = projectEllipse(centerX, centerY, radiusX * 0.075, radiusY * 0.11, 9, 20);
+    if (halfway && circle.every(Boolean)) {
+      context.beginPath();
+      context.moveTo(halfway.x, pitch[0].y);
+      context.lineTo(halfway.x, pitch[2].y);
+      context.stroke();
+      context.beginPath();
+      traceProjectedPoints(circle);
+      context.stroke();
+    }
+  }
+
+  context.fillStyle = "#e4d7b6";
+  context.beginPath();
+  traceProjectedPoints(top);
+  traceProjectedPoints(roofOpening, true);
+  context.fill("evenodd");
+  context.strokeStyle = "rgba(250, 240, 216, .86)";
+  context.lineWidth = Math.max(1, center.scale * 4);
+  context.beginPath();
+  traceProjectedPoints(top);
+  context.stroke();
+  context.strokeStyle = "rgba(75, 92, 81, .78)";
+  context.lineWidth = Math.max(1, center.scale * 2);
+  for (let rib = 0; rib < segments; rib += 4) {
+    context.beginPath();
+    context.moveTo(top[rib].x, top[rib].y);
+    context.lineTo(roofOpening[rib].x, roofOpening[rib].y);
+    context.stroke();
+  }
+
+  const sign = projectWorldPoint(centerX, centerY + radiusY * 0.89, roofHeight * 0.34);
+  if (sign) {
+    const signWidth = Math.max(36, sign.scale * 128);
+    const signHeight = Math.max(10, sign.scale * 24);
+    context.fillStyle = "#24382c";
+    context.fillRect(sign.x - signWidth / 2, sign.y - signHeight / 2, signWidth, signHeight);
+    context.fillStyle = "#f0d98f";
+    context.textAlign = "center";
+    context.textBaseline = "middle";
+    context.font = `700 ${clamp(sign.scale * 18, 7, 13)}px 'DM Mono', monospace`;
+    context.fillText("NRG", sign.x, sign.y, signWidth - 8);
+  }
   context.restore();
 }
 
