@@ -50,6 +50,14 @@ const STICKERS = [
   { id: "contact", label: "Contact", mark: "AH", color: "#8bd8e2" },
 ];
 
+const EMPLOYER_BRANDS = {
+  togetherwork: { name: "TOGETHERWORK", mark: "t", color: "#a9cf72", style: "together" },
+  "maxel-lab": { name: "MAXEL LAB", mark: "M", color: "#76cbb5", style: "maxel" },
+  fifa: { name: "FIFA WORLD CUP 26", mark: "26", color: "#d7b24e", style: "fifa" },
+  foodscope: { name: "FOODSCOPE AI", mark: "F", color: "#db9373", style: "food" },
+  axiom: { name: "AXIOM FINANCE", mark: "A", color: "#83a9d8", style: "axiom" },
+};
+
 const ROAD_SEGMENTS = [
   { id: "projects", name: "PROJECT EXPRESSWAY", x1: 0, y1: 510, x2: 780, y2: 510, color: "#c4a4e5" },
   { id: "experience", name: "EXPERIENCE HIGHWAY", x1: 780, y1: 510, x2: 1740, y2: 510, color: "#b9e68a" },
@@ -165,6 +173,7 @@ const game = {
   earnedStickers: new Set(),
   boostCharge: 100,
   effects: [],
+  frameError: "",
 };
 
 const projection = {
@@ -670,6 +679,7 @@ function resetCar() {
   game.car.boosting = false;
   game.boostCharge = 100;
   game.car.braking = false;
+  game.frameError = "";
   game.camera.x = game.car.x;
   game.camera.y = game.car.y;
   game.camera.heading = game.car.heading;
@@ -1545,17 +1555,37 @@ function drawStadiumPerspective() {
   traceProjectedPoints(shadow);
   context.fill();
 
-  for (let index = 0; index < ground.length; index += 1) {
-    const next = (index + 1) % ground.length;
-    const nearSide = ground[index].depth < center.depth;
+  for (let index = 0; index < segments; index += 1) {
+    const angle = (index / segments) * Math.PI * 2;
+    const nextAngle = ((index + 1) / segments) * Math.PI * 2;
+    const groundStart = projectWorldPoint(
+      centerX + Math.cos(angle) * radiusX,
+      centerY + Math.sin(angle) * radiusY,
+    );
+    const groundEnd = projectWorldPoint(
+      centerX + Math.cos(nextAngle) * radiusX,
+      centerY + Math.sin(nextAngle) * radiusY,
+    );
+    const roofStart = projectWorldPoint(
+      centerX + Math.cos(angle) * radiusX,
+      centerY + Math.sin(angle) * radiusY,
+      roofHeight,
+    );
+    const roofEnd = projectWorldPoint(
+      centerX + Math.cos(nextAngle) * radiusX,
+      centerY + Math.sin(nextAngle) * radiusY,
+      roofHeight,
+    );
+    if (!groundStart || !groundEnd || !roofStart || !roofEnd) continue;
+    const nearSide = groundStart.depth < center.depth;
     context.fillStyle = nearSide
       ? index % 2 ? "#58685d" : "#718176"
       : index % 2 ? "#7b897d" : "#8a9588";
     context.beginPath();
-    context.moveTo(ground[index].x, ground[index].y);
-    context.lineTo(ground[next].x, ground[next].y);
-    context.lineTo(top[next].x, top[next].y);
-    context.lineTo(top[index].x, top[index].y);
+    context.moveTo(groundStart.x, groundStart.y);
+    context.lineTo(groundEnd.x, groundEnd.y);
+    context.lineTo(roofEnd.x, roofEnd.y);
+    context.lineTo(roofStart.x, roofStart.y);
     context.closePath();
     context.fill();
     context.strokeStyle = "rgba(38, 53, 44, .25)";
@@ -1620,9 +1650,21 @@ function drawStadiumPerspective() {
   context.strokeStyle = "rgba(75, 92, 81, .78)";
   context.lineWidth = Math.max(1, center.scale * 2);
   for (let rib = 0; rib < segments; rib += 4) {
+    const angle = (rib / segments) * Math.PI * 2;
+    const outer = projectWorldPoint(
+      centerX + Math.cos(angle) * radiusX,
+      centerY + Math.sin(angle) * radiusY,
+      roofHeight,
+    );
+    const inner = projectWorldPoint(
+      centerX + Math.cos(angle) * radiusX * 0.57,
+      centerY + Math.sin(angle) * radiusY * 0.5,
+      roofHeight,
+    );
+    if (!outer || !inner) continue;
     context.beginPath();
-    context.moveTo(top[rib].x, top[rib].y);
-    context.lineTo(roofOpening[rib].x, roofOpening[rib].y);
+    context.moveTo(outer.x, outer.y);
+    context.lineTo(inner.x, inner.y);
     context.stroke();
   }
 
@@ -1860,35 +1902,139 @@ function drawWorldCupTrophy(x, y, scale = 1) {
   context.save();
   context.translate(x, y);
   context.scale(scale, scale);
-  const gold = context.createLinearGradient(-16, -22, 15, 22);
-  gold.addColorStop(0, "#fff0a2");
-  gold.addColorStop(.45, "#d5a83d");
-  gold.addColorStop(1, "#94651d");
+  const gold = context.createLinearGradient(-15, -28, 17, 26);
+  gold.addColorStop(0, "#fff1b1");
+  gold.addColorStop(.32, "#e5bd55");
+  gold.addColorStop(.68, "#b47a26");
+  gold.addColorStop(1, "#f1d77c");
   context.fillStyle = gold;
-  context.strokeStyle = "#ffe8a0";
-  context.lineWidth = 1.7;
+  context.strokeStyle = "#ffe9a1";
+  context.lineWidth = 1.25;
+
   context.beginPath();
-  context.moveTo(-10, -22);
-  context.bezierCurveTo(-19, -29, -18, -9, -5, -4);
-  context.lineTo(-4, 8);
-  context.quadraticCurveTo(-8, 14, -13, 18);
-  context.lineTo(13, 18);
-  context.quadraticCurveTo(8, 14, 4, 8);
-  context.lineTo(5, -4);
-  context.bezierCurveTo(18, -9, 19, -29, 10, -22);
-  context.quadraticCurveTo(5, -19, 0, -19);
-  context.quadraticCurveTo(-5, -19, -10, -22);
+  context.arc(0, -20, 7.3, 0, Math.PI * 2);
+  context.fill();
+  context.stroke();
+  context.strokeStyle = "rgba(255, 242, 188, .76)";
+  context.lineWidth = .7;
+  context.beginPath();
+  context.ellipse(0, -20, 3.2, 7.1, 0, 0, Math.PI * 2);
+  context.moveTo(-6.7, -20);
+  context.quadraticCurveTo(0, -23.4, 6.7, -20);
+  context.moveTo(-6.7, -20);
+  context.quadraticCurveTo(0, -16.6, 6.7, -20);
+  context.stroke();
+
+  context.fillStyle = gold;
+  context.beginPath();
+  context.moveTo(-5.3, -15.7);
+  context.bezierCurveTo(-12, -14, -13, -5, -7, 0);
+  context.bezierCurveTo(-4, 3, -3.4, 7, -5.8, 12);
+  context.lineTo(-12.2, 20);
+  context.quadraticCurveTo(-4, 17.4, 0, 13);
+  context.quadraticCurveTo(4, 17.4, 12.2, 20);
+  context.lineTo(5.8, 12);
+  context.bezierCurveTo(3.4, 7, 4, 3, 7, 0);
+  context.bezierCurveTo(13, -5, 12, -14, 5.3, -15.7);
+  context.quadraticCurveTo(3.4, -10, 0, -10.2);
+  context.quadraticCurveTo(-3.4, -10, -5.3, -15.7);
   context.closePath();
   context.fill();
   context.stroke();
-  context.fillStyle = "#c19a37";
-  context.fillRect(-5, 15, 10, 8);
-  context.fillStyle = "#26392f";
-  context.fillRect(-12, 22, 24, 6);
-  context.fillStyle = "#efe2ae";
+
+  context.strokeStyle = "rgba(255, 239, 181, .82)";
+  context.lineWidth = 1;
   context.beginPath();
-  context.arc(0, -12, 4, 0, Math.PI * 2);
+  context.moveTo(-6.2, -8.7);
+  context.quadraticCurveTo(-13.2, -14, -13.1, -7);
+  context.quadraticCurveTo(-12.8, -2.7, -7, -.2);
+  context.moveTo(6.2, -8.7);
+  context.quadraticCurveTo(13.2, -14, 13.1, -7);
+  context.quadraticCurveTo(12.8, -2.7, 7, -.2);
+  context.stroke();
+
+  const base = context.createLinearGradient(-8, 18, 8, 29);
+  base.addColorStop(0, "#286044");
+  base.addColorStop(.5, "#163d30");
+  base.addColorStop(1, "#102a24");
+  context.fillStyle = base;
+  context.beginPath();
+  context.moveTo(-7.3, 19);
+  context.lineTo(7.3, 19);
+  context.lineTo(8.7, 27);
+  context.lineTo(-8.7, 27);
+  context.closePath();
   context.fill();
+  context.strokeStyle = "#b79645";
+  context.lineWidth = 1;
+  context.stroke();
+  context.fillStyle = "#e7c764";
+  context.fillRect(-7.4, 22, 14.8, 1.2);
+  context.restore();
+}
+
+function drawEmployerLogo(exhibit, x, y, size) {
+  const brand = EMPLOYER_BRANDS[exhibit.contentId];
+  if (!brand) return;
+  const height = Math.max(13, size * .2);
+  const width = Math.max(32, size - 4);
+  const left = x + 2;
+  const top = y + size - height - 2;
+  context.save();
+  context.fillStyle = "rgba(16, 23, 27, .94)";
+  context.fillRect(left, top, width, height);
+  context.fillStyle = brand.color;
+  context.fillRect(left, top, Math.max(2, size * .045), height);
+
+  const badgeSize = height * .78;
+  const badgeX = left + badgeSize * .78;
+  const badgeY = top + height / 2;
+  context.fillStyle = brand.color;
+  context.strokeStyle = "rgba(247, 241, 220, .78)";
+  context.lineWidth = Math.max(.7, size * .013);
+  if (brand.style === "fifa") {
+    context.beginPath();
+    context.arc(badgeX, badgeY, badgeSize * .44, 0, Math.PI * 2);
+    context.fill();
+    context.stroke();
+    context.fillStyle = "#18364a";
+    context.font = `800 ${Math.max(5, badgeSize * .58)}px 'DM Sans', sans-serif`;
+  } else {
+    context.beginPath();
+    context.roundRect(badgeX - badgeSize * .44, badgeY - badgeSize * .44, badgeSize * .88, badgeSize * .88, brand.style === "food" ? badgeSize : 2);
+    context.fill();
+    context.stroke();
+    context.fillStyle = "#17242a";
+    context.font = `800 ${Math.max(6, badgeSize * .62)}px 'DM Sans', sans-serif`;
+  }
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+  context.fillText(brand.mark, badgeX, badgeY + .2);
+  if (brand.style === "together") {
+    context.strokeStyle = brand.color;
+    context.lineWidth = Math.max(1, badgeSize * .11);
+    context.beginPath();
+    context.arc(badgeX, badgeY, badgeSize * .3, -.65, .65);
+    context.stroke();
+  } else if (brand.style === "maxel") {
+    context.fillStyle = "#17242a";
+    context.beginPath();
+    context.arc(badgeX + badgeSize * .22, badgeY - badgeSize * .22, badgeSize * .09, 0, Math.PI * 2);
+    context.fill();
+  } else if (brand.style === "axiom") {
+    context.strokeStyle = "rgba(237, 244, 246, .8)";
+    context.lineWidth = Math.max(.6, badgeSize * .06);
+    context.beginPath();
+    context.moveTo(badgeX - badgeSize * .25, badgeY + badgeSize * .19);
+    context.lineTo(badgeX, badgeY - badgeSize * .22);
+    context.lineTo(badgeX + badgeSize * .25, badgeY + badgeSize * .19);
+    context.stroke();
+  }
+  context.fillStyle = "#f4f1e7";
+  context.textAlign = "left";
+  context.textBaseline = "middle";
+  context.font = `700 ${Math.max(4.5, Math.min(7, size * .095))}px 'DM Mono', monospace`;
+  context.fillText(brand.name, left + badgeSize * 1.55, badgeY, width - badgeSize * 1.8);
   context.restore();
 }
 
@@ -1933,6 +2079,7 @@ function drawExhibit(exhibit) {
   context.fillStyle = "#b8c5b5";
   context.font = `400 ${kickerFont}px 'DM Mono', monospace`;
   context.fillText("SLOW DOWN · E TO READ", textX, y + 72 * scale, textWidth);
+  drawEmployerLogo(exhibit, x - width / 2 + 7 * scale, y + 11 * scale, artWidth);
   context.restore();
 
   if (exhibit.visual === "world-cup-trophy") {
@@ -2308,43 +2455,101 @@ function render(interpolation = 1) {
   drawWorld();
 }
 
+function drawFrameRecovery() {
+  context.setTransform(game.pixelRatio, 0, 0, game.pixelRatio, 0, 0);
+  context.globalAlpha = 1;
+  context.globalCompositeOperation = "source-over";
+  context.fillStyle = "#1c252b";
+  context.fillRect(0, 0, game.width, game.height);
+  context.fillStyle = "#343e43";
+  context.fillRect(0, game.height * .6, game.width, game.height * .4);
+  context.fillStyle = "#e7bb78";
+  context.font = "600 11px 'DM Mono', monospace";
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+  context.fillText("SCENE RECOVERING · PRESS R TO RESET", game.width / 2, game.height * .2);
+  context.save();
+  context.translate(game.width / 2, game.height * .82);
+  context.fillStyle = "#11171d";
+  context.beginPath();
+  context.moveTo(-24, -25);
+  context.lineTo(24, -25);
+  context.lineTo(30, 20);
+  context.lineTo(22, 38);
+  context.lineTo(-22, 38);
+  context.lineTo(-30, 20);
+  context.closePath();
+  context.fill();
+  context.fillStyle = "#7b8990";
+  context.beginPath();
+  context.moveTo(-16, -18);
+  context.lineTo(16, -18);
+  context.lineTo(12, 4);
+  context.lineTo(-12, 4);
+  context.closePath();
+  context.fill();
+  context.fillStyle = "#ef5b4e";
+  context.fillRect(-22, 20, 12, 6);
+  context.fillRect(10, 20, 12, 6);
+  context.restore();
+}
+
+function reportFrameError(error) {
+  const message = error instanceof Error ? error.message : String(error);
+  if (game.frameError === message) return;
+  game.frameError = message;
+  console.error("Portfolio Drive frame failed; showing recovery scene.", error);
+  canvas.width = Math.round(game.width * game.pixelRatio);
+  canvas.height = Math.round(game.height * game.pixelRatio);
+  context.setTransform(game.pixelRatio, 0, 0, game.pixelRatio, 0, 0);
+  document.querySelector("#drivingStatus").textContent = "SCENE RECOVERING · PRESS R TO RESET";
+  announce("The driving scene encountered a rendering error. Press R to reset the car.");
+}
+
 function frame(timestamp) {
   if (!game.running) return;
-  if (document.hidden) {
-    game.lastFrame = 0;
-    clearInput();
-    requestAnimationFrame(frame);
-    return;
-  }
-  if (!game.lastFrame) game.lastFrame = timestamp;
-  const elapsed = Math.min((timestamp - game.lastFrame) / 1000, 0.1);
-  game.lastFrame = timestamp;
-  if (game.driving && !game.dialogOpen && portfolioView.hidden) {
-    game.accumulator += elapsed;
-    while (game.accumulator >= DRIVE.fixedStep) {
-      game.previousCamera.x = game.camera.x;
-      game.previousCamera.y = game.camera.y;
-      game.previousCamera.heading = game.camera.heading;
-      updateCar(DRIVE.fixedStep);
-      game.accumulator -= DRIVE.fixedStep;
+  try {
+    if (document.hidden) {
+      game.lastFrame = 0;
+      clearInput();
+      return;
     }
+    if (!game.lastFrame) game.lastFrame = timestamp;
+    const elapsed = Math.min((timestamp - game.lastFrame) / 1000, 0.1);
+    game.lastFrame = timestamp;
+    if (game.driving && !game.dialogOpen && portfolioView.hidden) {
+      game.accumulator += elapsed;
+      while (game.accumulator >= DRIVE.fixedStep) {
+        game.previousCamera.x = game.camera.x;
+        game.previousCamera.y = game.camera.y;
+        game.previousCamera.heading = game.camera.heading;
+        updateCar(DRIVE.fixedStep);
+        game.accumulator -= DRIVE.fixedStep;
+      }
+    }
+    if (game.driving) {
+      document.querySelector("#speedValue").textContent = String(Math.round(Math.abs(game.car.speed) * .36)).padStart(3, "0");
+      const boostPercent = Math.round(game.boostCharge);
+      document.querySelector("#boostValue").textContent = `${boostPercent}%`;
+      document.querySelector("#boostFill").style.width = `${boostPercent}%`;
+      document.querySelector("#boostFill").classList.toggle("is-depleted", boostPercent === 0);
+      const nearestDistrict = districts.map((district) => ({ district, range: distance(game.car, district) })).sort((a, b) => a.range - b.range)[0];
+      game.district = nearestDistrict.range < DRIVE.interactionExitRadius * 1.7 ? nearestDistrict.district : null;
+      document.querySelector("#currentDistrict").textContent = game.district?.shortTitle.toUpperCase() ?? "WELCOME PLAZA";
+      if (!game.frameError) {
+        document.querySelector("#drivingStatus").textContent = game.district ? `EXPLORING ${game.district.shortTitle.toUpperCase()}` : "CRUISING PORTFOLIO DRIVE";
+      }
+      updateCheckpointNavigation();
+    }
+    if (!driveView.hidden && game.driving && !game.dialogOpen) {
+      render(game.accumulator / DRIVE.fixedStep);
+    }
+  } catch (error) {
+    reportFrameError(error);
+    drawFrameRecovery();
+  } finally {
+    requestAnimationFrame(frame);
   }
-  if (game.driving) {
-    document.querySelector("#speedValue").textContent = String(Math.round(Math.abs(game.car.speed) * .36)).padStart(3, "0");
-    const boostPercent = Math.round(game.boostCharge);
-    document.querySelector("#boostValue").textContent = `${boostPercent}%`;
-    document.querySelector("#boostFill").style.width = `${boostPercent}%`;
-    document.querySelector("#boostFill").classList.toggle("is-depleted", boostPercent === 0);
-    const nearestDistrict = districts.map((district) => ({ district, range: distance(game.car, district) })).sort((a, b) => a.range - b.range)[0];
-    game.district = nearestDistrict.range < DRIVE.interactionExitRadius * 1.7 ? nearestDistrict.district : null;
-    document.querySelector("#currentDistrict").textContent = game.district?.shortTitle.toUpperCase() ?? "WELCOME PLAZA";
-    document.querySelector("#drivingStatus").textContent = game.district ? `EXPLORING ${game.district.shortTitle.toUpperCase()}` : "CRUISING PORTFOLIO DRIVE";
-    updateCheckpointNavigation();
-  }
-  if (!driveView.hidden && game.driving && !game.dialogOpen) {
-    render(game.accumulator / DRIVE.fixedStep);
-  }
-  requestAnimationFrame(frame);
 }
 
 function startLoop() {

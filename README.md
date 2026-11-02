@@ -2,7 +2,7 @@
 
 A responsive, resume-backed portfolio for Ahad Hashmani with an optional behind-the-car driving view and a conventional HTML portfolio. The expanded illustrated map has five named, color-accented routes, additional buildings, a central fountain, and an original NRG Stadium landmark for the FIFA World Cup destination. Follow the on-screen navigation through Experience, Education, Projects, Skills, and Contact checkpoints; each checkpoint opens its matching career area and awards a collectible car sticker. The Experience Highway has an illustrated billboard for every role, including a custom World Cup trophy scene at FIFA; nearby role exhibits award additional stickers. The Project Expressway has illustrated project landmarks. Each exhibit opens its matching resume-backed detail panel when approached slowly. The same destinations remain available from the interface. Built with HTML, CSS, Canvas 2D, and vanilla JavaScript modules; no framework or runtime dependency is required.
 
-The driving scene uses a longer perspective view with cached scenery and smooth camera interpolation. Its original armored coupe has a comic-supercar silhouette and animated twin-turbine boost plumes; it does not use Batman, Batmobile, or other franchise artwork.
+The driving scene uses a longer perspective view with cached scenery and smooth camera interpolation. Its original armored coupe has a comic-supercar silhouette and animated twin-turbine boost plumes; it does not use Batman, Batmobile, or other franchise artwork. Career billboards include custom employer wordmarks and monograms, rather than copied official logo artwork. The FIFA reward uses a more detailed, stylized globe-and-figures trophy silhouette.
 
 ## Run locally
 
@@ -54,7 +54,7 @@ Change the `DRIVE` configuration at the top of `src/main.js`. It contains world 
 
 ## Assets and deployment
 
-The map, billboards, employer monograms, NRG Stadium, fountain, trophy, stickers, and project illustrations are original Canvas/CSS drawings; employer monograms are not official logos. There are no third-party images and no external project screenshots are bundled. Fonts are loaded from Google Fonts with system fallbacks. Deploy the project root to any static host that supports ES modules and serves `index.html` as the entry page. Keep all links relative to this root.
+The map, billboards, employer wordmarks, NRG Stadium, fountain, trophy, stickers, and project illustrations are original Canvas/CSS drawings; employer wordmarks are portfolio identifiers, not official logo reproductions. There are no third-party images and no external project screenshots are bundled. Fonts are loaded from Google Fonts with system fallbacks. Deploy the project root to any static host that supports ES modules and serves `index.html` as the entry page. Keep all links relative to this root.
 
 ## Source and privacy notes
 
@@ -64,4 +64,4 @@ The resume source includes a personal phone number and email. Neither is exposed
 
 ## Validation and known limitations
 
-Verified in the integrated Chromium browser at 1440×900 and 390×844: portfolio navigation, project archive and detail links, keyboard acceleration, touch-pointer acceleration, district prompts, and the compact behind-the-car scene. The animation loop sampled about 60 FPS at both viewport sizes; this is a quick implementation check, not a formal performance benchmark. Firefox, Safari, physical mobile devices, and assistive technology were not tested. The world is illustrative and uses simple obstacle collisions; all professional content remains available without driving.
+Verified in the integrated Chromium browser at 1440×900 and 390×844: portfolio navigation, project archive and detail links, keyboard acceleration, touch-pointer acceleration, district prompts, and the compact behind-the-car scene. The renderer catches frame errors, reports the problem, preserves the animation loop, and displays a recovery car scene. The animation loop sampled about 60 FPS at both viewport sizes in prior checks; this is a quick implementation check, not a formal performance benchmark. Firefox, Safari, physical mobile devices, and assistive technology were not tested. The world is illustrative and uses simple obstacle collisions; all professional content remains available without driving.
