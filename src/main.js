@@ -95,6 +95,7 @@ const BUILDINGS = [
 
 const STADIUM = { x: 1200, y: 200, w: 340, d: 230, h: 96 };
 const FOUNTAIN = { x: 900, y: 850, radius: 34 };
+const RENDER_DISTANCE = 2600 * WORLD_SCALE;
 
 function scaleWorldLayout() {
   ROAD_SEGMENTS.forEach((road) => {
@@ -125,6 +126,7 @@ function scaleWorldLayout() {
 
 scaleWorldLayout();
 
+const SCENERY_TREES = [];
 const canvas = document.querySelector("#worldCanvas");
 const context = canvas.getContext("2d");
 const driveView = document.querySelector("#driveView");
@@ -156,6 +158,7 @@ const game = {
   checkpointIndex: 0,
   car: { x: 780 * WORLD_SCALE, y: 510 * WORLD_SCALE, heading: -Math.PI / 2, speed: 0, visualSteer: 0, braking: false, driftAngle: 0, boosting: false },
   camera: { x: 780 * WORLD_SCALE, y: 510 * WORLD_SCALE, heading: -Math.PI / 2 },
+  previousCamera: { x: 780 * WORLD_SCALE, y: 510 * WORLD_SCALE, heading: -Math.PI / 2 },
   keys: new Set(),
   pointers: new Map(),
   completedCheckpoints: new Set(),
@@ -196,6 +199,17 @@ const safeStorage = {
     }
   },
 };
+
+for (let x = 45; x < DRIVE.worldWidth; x += 120) {
+  for (let y = 40; y < DRIVE.worldHeight; y += 125) {
+    const tx = x + Math.sin(x * .017 + y * .011) * 20;
+    const ty = y + Math.cos(x * .013 - y * .015) * 18;
+    if (ROAD_SEGMENTS.some((segment) => distanceToSegment(tx, ty, segment) < DRIVE.roadWidth * .65)) continue;
+    if (BUILDINGS.some((building) => tx > building.x - 22 && tx < building.x + building.w + 22
+      && ty > building.y - 22 && ty < building.y + building.d + 22)) continue;
+    SCENERY_TREES.push({ x: tx, y: ty, radius: 10 + ((x + y) % 5) });
+  }
+}
 
 function element(tag, className, text) {
   const node = document.createElement(tag);
@@ -659,6 +673,9 @@ function resetCar() {
   game.camera.x = game.car.x;
   game.camera.y = game.car.y;
   game.camera.heading = game.car.heading;
+  game.previousCamera.x = game.camera.x;
+  game.previousCamera.y = game.camera.y;
+  game.previousCamera.heading = game.camera.heading;
   game.activePrompt = null;
   clearInput();
   if (game.driving) announce("Car reset to Welcome Plaza");
@@ -923,7 +940,7 @@ function projectWorldPoint(x, y, elevation = 0) {
   const relativeX = x - projection.cameraX;
   const relativeY = y - projection.cameraY;
   const depth = relativeX * projection.forwardX + relativeY * projection.forwardY;
-  if (depth < 8 || depth > 1800 * WORLD_SCALE) return null;
+  if (depth < 8 || depth > RENDER_DISTANCE) return null;
   const lateral = relativeX * projection.rightX + relativeY * projection.rightY;
   const scale = projection.focal / depth;
   return {
@@ -934,13 +951,16 @@ function projectWorldPoint(x, y, elevation = 0) {
   };
 }
 
-function prepareProjection() {
-  projection.forwardX = Math.cos(game.camera.heading);
-  projection.forwardY = Math.sin(game.camera.heading);
+function prepareProjection(interpolation = 1) {
+  const cameraX = lerp(game.previousCamera.x, game.camera.x, interpolation);
+  const cameraY = lerp(game.previousCamera.y, game.camera.y, interpolation);
+  const cameraHeading = lerpAngle(game.previousCamera.heading, game.camera.heading, interpolation);
+  projection.forwardX = Math.cos(cameraHeading);
+  projection.forwardY = Math.sin(cameraHeading);
   projection.rightX = -projection.forwardY;
   projection.rightY = projection.forwardX;
-  projection.cameraX = game.camera.x - projection.forwardX * DRIVE.cameraDistance;
-  projection.cameraY = game.camera.y - projection.forwardY * DRIVE.cameraDistance;
+  projection.cameraX = cameraX - projection.forwardX * DRIVE.cameraDistance;
+  projection.cameraY = cameraY - projection.forwardY * DRIVE.cameraDistance;
   projection.focal = game.height * DRIVE.focalLength;
 }
 
@@ -1000,7 +1020,7 @@ function projectEllipse(x, y, radiusX, radiusY, elevation = 0, steps = 48) {
     };
   });
   const nearDepth = 8.1;
-  const farDepth = 1800 * WORLD_SCALE - 0.1;
+  const farDepth = RENDER_DISTANCE - 0.1;
   let clipped = worldPoints;
   for (const [boundary, keepPoint] of [
     [nearDepth, (depth) => depth >= nearDepth],
@@ -1091,10 +1111,10 @@ function drawRoadRibbon(segment, halfWidth, color) {
   let endAlong = length;
   const nearDepth = DRIVE.roadWidth * .72;
   if (Math.abs(depthDelta) < .001) {
-    if (startDepth < nearDepth || startDepth > 1700 * WORLD_SCALE) return;
+    if (startDepth < nearDepth || startDepth > RENDER_DISTANCE) return;
   } else {
     const nearAlong = (nearDepth - startDepth) / depthDelta * length;
-    const farAlong = (1700 * WORLD_SCALE - startDepth) / depthDelta * length;
+    const farAlong = (RENDER_DISTANCE - startDepth) / depthDelta * length;
     startAlong = Math.max(0, Math.min(nearAlong, farAlong));
     endAlong = Math.min(length, Math.max(nearAlong, farAlong));
     if (startAlong >= endAlong) return;
@@ -1163,15 +1183,7 @@ function drawRoads() {
 }
 
 function drawTrees() {
-  for (let x = 45; x < DRIVE.worldWidth; x += 120) {
-    for (let y = 40; y < DRIVE.worldHeight; y += 125) {
-      const tx = x + Math.sin(x * .017 + y * .011) * 20;
-      const ty = y + Math.cos(x * .013 - y * .015) * 18;
-      if (ROAD_SEGMENTS.some((segment) => distanceToSegment(tx, ty, segment) < DRIVE.roadWidth * .65)) continue;
-      if (BUILDINGS.some((building) => tx > building.x - 22 && tx < building.x + building.w + 22 && ty > building.y - 22 && ty < building.y + building.d + 22)) continue;
-      drawTree(tx, ty, 10 + ((x + y) % 5));
-    }
-  }
+  SCENERY_TREES.forEach(({ x, y, radius }) => drawTree(x, y, radius));
 }
 
 function drawTree(x, y, radius) {
@@ -1179,6 +1191,8 @@ function drawTree(x, y, radius) {
   if (!base || base.x < -70 || base.x > game.width + 70) return;
   const size = clamp(radius * base.scale, 2, 54);
   const trunk = clamp(size * 1.8, 3, 62);
+  context.save();
+  context.globalAlpha = clamp((RENDER_DISTANCE - base.depth) / (RENDER_DISTANCE * .24), .16, 1);
   context.fillStyle = "rgba(52, 48, 43, .22)";
   context.beginPath();
   context.ellipse(base.x + size * .2, base.y, size * .9, size * .33, 0, 0, Math.PI * 2);
@@ -1193,6 +1207,7 @@ function drawTree(x, y, radius) {
   context.beginPath();
   context.ellipse(base.x - size * .2, base.y - trunk - size * .18, size * .63, size * .7, 0, 0, Math.PI * 2);
   context.fill();
+  context.restore();
 }
 
 function drawBuilding(building) {
@@ -1233,6 +1248,7 @@ function drawBuilding(building) {
   };
 
   context.save();
+  context.globalAlpha = clamp((RENDER_DISTANCE - corners[0].depth) / (RENDER_DISTANCE * .24), .2, 1);
   const shadow = projectEllipse(
     building.x + building.w * .58 + building.h * .13,
     building.y + building.d * .58 + building.h * .1,
@@ -1997,6 +2013,66 @@ function drawCarEffects() {
   }
 }
 
+function drawBoostPlume(width, length) {
+  const phase = performance.now() * .02;
+  const pulse = .9 + Math.sin(phase * 1.7) * .08;
+  const flicker = Math.sin(phase * 3.1) * .055 + Math.cos(phase * 2.3) * .035;
+  context.save();
+  context.globalCompositeOperation = "lighter";
+
+  const glow = context.createRadialGradient(0, length * .53, 1, 0, length * .67, width * .48);
+  glow.addColorStop(0, "rgba(255, 202, 117, .42)");
+  glow.addColorStop(.38, "rgba(255, 111, 54, .24)");
+  glow.addColorStop(1, "rgba(72, 152, 205, 0)");
+  context.fillStyle = glow;
+  context.beginPath();
+  context.ellipse(0, length * .67, width * .48, length * .54, 0, 0, Math.PI * 2);
+  context.fill();
+
+  for (const side of [-1, 1]) {
+    const originX = side * width * .105;
+    const baseY = length * .465;
+    const tipY = length * (1.02 + flicker) * pulse;
+    const flameGradient = context.createLinearGradient(originX, baseY, originX, tipY);
+    flameGradient.addColorStop(0, "rgba(255, 255, 233, .98)");
+    flameGradient.addColorStop(.12, "rgba(255, 220, 146, .98)");
+    flameGradient.addColorStop(.42, "rgba(255, 136, 60, .92)");
+    flameGradient.addColorStop(.76, "rgba(242, 73, 38, .68)");
+    flameGradient.addColorStop(1, "rgba(244, 83, 47, 0)");
+    context.fillStyle = flameGradient;
+    context.beginPath();
+    context.moveTo(originX - width * .07, baseY);
+    context.quadraticCurveTo(originX - width * (.09 + flicker), length * .66, originX + width * .015, tipY);
+    context.quadraticCurveTo(originX + width * (.08 - flicker), length * .68, originX + width * .07, baseY);
+    context.closePath();
+    context.fill();
+
+    context.fillStyle = "rgba(196, 233, 255, .76)";
+    context.beginPath();
+    context.moveTo(originX - width * .025, baseY);
+    context.quadraticCurveTo(originX - width * .028, length * .61, originX, length * (.78 + flicker * .4));
+    context.quadraticCurveTo(originX + width * .028, length * .61, originX + width * .025, baseY);
+    context.closePath();
+    context.fill();
+
+    for (let streak = 0; streak < 3; streak += 1) {
+      const streakPhase = (phase * .045 + streak * .31 + (side + 1) * .17) % 1;
+      const streakY = lerp(length * .51, tipY, streakPhase);
+      const streakWidth = width * (.018 + (1 - streakPhase) * .018);
+      context.globalAlpha = (1 - streakPhase) * .68;
+      context.fillStyle = streak % 2 ? "#ffd28c" : "#b8e4ff";
+      context.beginPath();
+      context.moveTo(originX - streakWidth, streakY);
+      context.lineTo(originX + streakWidth, streakY);
+      context.lineTo(originX, streakY + length * (.07 + (1 - streakPhase) * .08));
+      context.closePath();
+      context.fill();
+    }
+    context.globalAlpha = 1;
+  }
+  context.restore();
+}
+
 function drawPlayerCar() {
   const width = clamp(game.width * .052, 39, 70);
   const length = width * 1.86;
@@ -2005,10 +2081,38 @@ function drawPlayerCar() {
   context.save();
   context.translate(x, y);
   context.rotate(-game.car.visualSteer * .045 + game.car.driftAngle * .18);
-  context.fillStyle = "rgba(28, 31, 33, .3)";
+  context.fillStyle = "rgba(18, 22, 27, .42)";
   context.beginPath();
-  context.ellipse(4, length * .18, width * .7, length * .55, 0, 0, Math.PI * 2);
+  context.ellipse(4, length * .19, width * .78, length * .58, 0, 0, Math.PI * 2);
   context.fill();
+
+  if (game.car.boosting) drawBoostPlume(width, length);
+
+  const wingGradient = context.createLinearGradient(-width * .68, 0, width * .68, length * .3);
+  wingGradient.addColorStop(0, "#11171d");
+  wingGradient.addColorStop(.25, "#59636a");
+  wingGradient.addColorStop(.5, "#252d34");
+  wingGradient.addColorStop(.76, "#59636a");
+  wingGradient.addColorStop(1, "#11171d");
+  context.fillStyle = wingGradient;
+  context.beginPath();
+  context.moveTo(-width * .37, length * .15);
+  context.lineTo(-width * .68, length * .29);
+  context.lineTo(-width * .55, length * .31);
+  context.lineTo(-width * .62, length * .39);
+  context.lineTo(-width * .4, length * .37);
+  context.lineTo(-width * .32, length * .3);
+  context.lineTo(width * .32, length * .3);
+  context.lineTo(width * .4, length * .37);
+  context.lineTo(width * .62, length * .39);
+  context.lineTo(width * .55, length * .31);
+  context.lineTo(width * .68, length * .29);
+  context.lineTo(width * .37, length * .15);
+  context.closePath();
+  context.fill();
+  context.strokeStyle = "rgba(209, 218, 222, .5)";
+  context.lineWidth = Math.max(1, width * .018);
+  context.stroke();
 
   const tireGradient = context.createLinearGradient(-width * .58, 0, width * .58, 0);
   tireGradient.addColorStop(0, "#111719");
@@ -2036,22 +2140,23 @@ function drawPlayerCar() {
   shell.closePath();
 
   const bodyGradient = context.createLinearGradient(-width * .48, -length * .35, width * .48, length * .38);
-  bodyGradient.addColorStop(0, "#6d8491");
-  bodyGradient.addColorStop(.18, "#c8d2d3");
-  bodyGradient.addColorStop(.38, "#8fa4ad");
-  bodyGradient.addColorStop(.58, "#506b7b");
-  bodyGradient.addColorStop(.8, "#8298a1");
-  bodyGradient.addColorStop(1, "#354a58");
+  bodyGradient.addColorStop(0, "#4b555e");
+  bodyGradient.addColorStop(.18, "#929ba0");
+  bodyGradient.addColorStop(.31, "#303840");
+  bodyGradient.addColorStop(.52, "#11171d");
+  bodyGradient.addColorStop(.72, "#46515a");
+  bodyGradient.addColorStop(.88, "#252d34");
+  bodyGradient.addColorStop(1, "#0e1318");
   context.fillStyle = bodyGradient;
   context.fill(shell);
-  context.strokeStyle = "rgba(236, 243, 241, .82)";
+  context.strokeStyle = "rgba(195, 205, 211, .78)";
   context.lineWidth = Math.max(1, width * .025);
   context.stroke(shell);
 
   const glassGradient = context.createLinearGradient(0, -length * .39, 0, length * .04);
-  glassGradient.addColorStop(0, "#172a35");
-  glassGradient.addColorStop(.48, "#36515e");
-  glassGradient.addColorStop(1, "#a2b9bc");
+  glassGradient.addColorStop(0, "#080f15");
+  glassGradient.addColorStop(.48, "#1c2b35");
+  glassGradient.addColorStop(1, "#647681");
   context.beginPath();
   context.moveTo(-width * .31, -length * .35);
   context.quadraticCurveTo(0, -length * .41, width * .31, -length * .35);
@@ -2089,9 +2194,9 @@ function drawPlayerCar() {
   context.stroke();
 
   const trunkGradient = context.createLinearGradient(0, 0, 0, length * .3);
-  trunkGradient.addColorStop(0, "#9bacb0");
-  trunkGradient.addColorStop(.48, "#78909b");
-  trunkGradient.addColorStop(1, "#4b6471");
+  trunkGradient.addColorStop(0, "#58636b");
+  trunkGradient.addColorStop(.48, "#303941");
+  trunkGradient.addColorStop(1, "#11171d");
   context.fillStyle = trunkGradient;
   context.beginPath();
   context.moveTo(-width * .39, length * .02);
@@ -2101,7 +2206,7 @@ function drawPlayerCar() {
   context.closePath();
   context.fill();
 
-  context.strokeStyle = "rgba(238, 244, 236, .5)";
+  context.strokeStyle = "rgba(201, 210, 213, .48)";
   context.lineWidth = Math.max(1, width * .018);
   context.beginPath();
   context.moveTo(-width * .37, length * .08);
@@ -2111,10 +2216,10 @@ function drawPlayerCar() {
   context.stroke();
 
   const bumperGradient = context.createLinearGradient(0, length * .34, 0, length * .49);
-  bumperGradient.addColorStop(0, "#526a76");
-  bumperGradient.addColorStop(.42, "#344954");
-  bumperGradient.addColorStop(.55, "#d0d5d0");
-  bumperGradient.addColorStop(1, "#647681");
+  bumperGradient.addColorStop(0, "#414b53");
+  bumperGradient.addColorStop(.42, "#171e24");
+  bumperGradient.addColorStop(.55, "#7b8589");
+  bumperGradient.addColorStop(1, "#293239");
   context.fillStyle = bumperGradient;
   context.beginPath();
   context.moveTo(-width * .42, length * .35);
@@ -2124,7 +2229,7 @@ function drawPlayerCar() {
   context.closePath();
   context.fill();
 
-  const lampGlow = game.car.braking ? "#ff5d52" : "#d44a42";
+  const lampGlow = game.car.braking ? "#ff4d43" : "#982f35";
   const lampGradient = context.createLinearGradient(0, length * .2, 0, length * .32);
   lampGradient.addColorStop(0, "#ffb2a1");
   lampGradient.addColorStop(.24, lampGlow);
@@ -2138,21 +2243,21 @@ function drawPlayerCar() {
     context.lineTo(side * width * .4, length * .32);
     context.closePath();
     context.fill();
-    context.fillStyle = "rgba(255, 224, 193, .88)";
+    context.fillStyle = "rgba(255, 196, 146, .9)";
     context.fillRect(side < 0 ? -width * .37 : width * .3, length * .235, width * .07, length * .025);
     context.fillStyle = lampGradient;
   }
 
-  context.fillStyle = "#d9ddda";
+  context.fillStyle = "#aeb6b7";
   context.beginPath();
   context.roundRect(-width * .15, length * .34, width * .3, length * .105, width * .018);
   context.fill();
   context.strokeStyle = "rgba(42, 54, 60, .75)";
   context.lineWidth = 0.8;
   context.stroke();
-  context.fillStyle = "#34454e";
+  context.fillStyle = "#222b31";
   context.fillRect(-width * .11, length * .36, width * .22, length * .065);
-  context.fillStyle = "#e9e3ce";
+  context.fillStyle = "#d5c7aa";
   context.font = `700 ${clamp(width * .075, 3.5, 5.2)}px 'DM Mono', monospace`;
   context.textAlign = "center";
   context.textBaseline = "middle";
@@ -2163,23 +2268,6 @@ function drawPlayerCar() {
   context.roundRect(-width * .13, length * .455, width * .09, length * .025, 2);
   context.roundRect(width * .04, length * .455, width * .09, length * .025, 2);
   context.fill();
-
-  if (game.car.boosting) {
-    const flameLength = 0.5 + Math.sin(performance.now() * 0.025) * 0.06;
-    context.fillStyle = "#f5a34d";
-    context.beginPath();
-    context.moveTo(-width * .15, length * .47);
-    context.lineTo(-width * .06, length * .47);
-    context.lineTo(-width * .1, length * flameLength);
-    context.closePath();
-    context.fill();
-    context.beginPath();
-    context.moveTo(width * .06, length * .47);
-    context.lineTo(width * .15, length * .47);
-    context.lineTo(width * .1, length * flameLength);
-    context.closePath();
-    context.fill();
-  }
 
   game.earnedStickers.forEach((id, index) => {
     const sticker = STICKERS.find((item) => item.id === id);
@@ -2212,9 +2300,9 @@ function drawPlayerCar() {
   context.restore();
 }
 
-function render() {
+function render(interpolation = 1) {
   if (!context || !game.width || !game.height) return;
-  prepareProjection();
+  prepareProjection(interpolation);
   context.setTransform(game.pixelRatio, 0, 0, game.pixelRatio, 0, 0);
   context.clearRect(0, 0, game.width, game.height);
   drawWorld();
@@ -2234,6 +2322,9 @@ function frame(timestamp) {
   if (game.driving && !game.dialogOpen && portfolioView.hidden) {
     game.accumulator += elapsed;
     while (game.accumulator >= DRIVE.fixedStep) {
+      game.previousCamera.x = game.camera.x;
+      game.previousCamera.y = game.camera.y;
+      game.previousCamera.heading = game.camera.heading;
       updateCar(DRIVE.fixedStep);
       game.accumulator -= DRIVE.fixedStep;
     }
@@ -2250,7 +2341,9 @@ function frame(timestamp) {
     document.querySelector("#drivingStatus").textContent = game.district ? `EXPLORING ${game.district.shortTitle.toUpperCase()}` : "CRUISING PORTFOLIO DRIVE";
     updateCheckpointNavigation();
   }
-  if (!driveView.hidden && game.driving && !game.dialogOpen) render();
+  if (!driveView.hidden && game.driving && !game.dialogOpen) {
+    render(game.accumulator / DRIVE.fixedStep);
+  }
   requestAnimationFrame(frame);
 }
 

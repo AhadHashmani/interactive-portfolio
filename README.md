@@ -2,6 +2,8 @@
 
 A responsive, resume-backed portfolio for Ahad Hashmani with an optional behind-the-car driving view and a conventional HTML portfolio. The expanded illustrated map has five named, color-accented routes, additional buildings, a central fountain, and an original NRG Stadium landmark for the FIFA World Cup destination. Follow the on-screen navigation through Experience, Education, Projects, Skills, and Contact checkpoints; each checkpoint opens its matching career area and awards a collectible car sticker. The Experience Highway has an illustrated billboard for every role, including a custom World Cup trophy scene at FIFA; nearby role exhibits award additional stickers. The Project Expressway has illustrated project landmarks. Each exhibit opens its matching resume-backed detail panel when approached slowly. The same destinations remain available from the interface. Built with HTML, CSS, Canvas 2D, and vanilla JavaScript modules; no framework or runtime dependency is required.
 
+The driving scene uses a longer perspective view with cached scenery and smooth camera interpolation. Its original armored coupe has a comic-supercar silhouette and animated twin-turbine boost plumes; it does not use Batman, Batmobile, or other franchise artwork.
+
 ## Run locally
 
 ES modules require an HTTP server; do not open `index.html` with `file://`.
@@ -16,6 +18,7 @@ ES modules require an HTTP server; do not open `index.html` with `file://`.
 - **S / ↓:** brake, then reverse
 - **A / ←, D / →:** steer
 - **Hold Shift while moving:** boost; charge refills when released
+- Boost draws animated, twin-turbine flame trails behind the car.
 - **Hold Space + steer:** drift through turns and leave tire smoke
 - **E / Enter:** open the nearby destination
 - **R:** reset to the plaza
@@ -47,7 +50,7 @@ Edit the matching district in `districts` in `src/content.js`. `x` and `y` are w
 
 ## Tune driving
 
-Change the `DRIVE` configuration at the top of `src/main.js`. It contains world dimensions, acceleration, braking, speed limits, steering, camera easing, and interaction thresholds. `CHECKPOINT_ORDER` controls the guided career route; `STICKERS`, `STADIUM`, and `FOUNTAIN` define collectible rewards and major landmarks. The world renderer and vehicle loop are in the same module to keep this small static release easy to run.
+Change the `DRIVE` configuration at the top of `src/main.js`. It contains world dimensions, acceleration, braking, speed limits, steering, camera easing, and interaction thresholds. `RENDER_DISTANCE` controls the world view range. `CHECKPOINT_ORDER` controls the guided career route; `STICKERS`, `STADIUM`, and `FOUNTAIN` define collectible rewards and major landmarks. The world renderer and vehicle loop are in the same module to keep this small static release easy to run.
 
 ## Assets and deployment
 
