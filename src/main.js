@@ -67,30 +67,30 @@ const ROUTE_SIGNS = [
 ];
 
 const BUILDINGS = [
-  { x: 540, y: 62, w: 126, d: 100, h: 86, color: "#c9d6b0", label: "CAMPUS HALL" },
-  { x: 888, y: 58, w: 112, d: 86, h: 72, color: "#b6c8a5", label: "STUDY HOUSE" },
-  { x: 140, y: 270, w: 112, d: 88, h: 74, color: "#d4c8a7", label: "RESEARCH LAB" },
-  { x: 330, y: 280, w: 128, d: 92, h: 82, color: "#c3d1ae", label: "DATA STUDIO" },
-  { x: 1630, y: 250, w: 124, d: 92, h: 84, color: "#d6d0b8", label: "OFFICE 01" },
-  { x: 1590, y: 890, w: 128, d: 100, h: 82, color: "#c1d0b5", label: "PIT STOP" },
-  { x: 560, y: 966, w: 122, d: 92, h: 80, color: "#dcc7a1", label: "WORKSHOP" },
-  { x: 870, y: 970, w: 128, d: 94, h: 78, color: "#c9b991", label: "TOOL SHED" },
-  { x: 1110, y: 930, w: 116, d: 90, h: 76, color: "#c9d1b5", label: "COMMUNITY HALL" },
-  { x: 80, y: 70, w: 130, d: 105, h: 90, color: "#c1c9a7", label: "GARDEN HOUSE" },
-  { x: 285, y: 82, w: 105, d: 83, h: 68, color: "#b8caaa", label: "FIELD STATION" },
-  { x: 1120, y: 55, w: 145, d: 112, h: 96, color: "#d5c9a6", label: "LIBRARY" },
-  { x: 1420, y: 82, w: 114, d: 88, h: 72, color: "#b9c9b0", label: "CAMPUS CAFE" },
-  { x: 70, y: 850, w: 138, d: 106, h: 88, color: "#c8d0b1", label: "MAKER SPACE" },
-  { x: 260, y: 1010, w: 118, d: 94, h: 78, color: "#d7c6a5", label: "OBSERVATORY" },
-  { x: 410, y: 880, w: 110, d: 84, h: 70, color: "#b9c6a9", label: "GREENHOUSE" },
-  { x: 1320, y: 1000, w: 150, d: 112, h: 90, color: "#c9c5a9", label: "MARKET HALL" },
-  { x: 1535, y: 1010, w: 116, d: 90, h: 76, color: "#c7d2b2", label: "GARDEN CAFE" },
-  { x: 80, y: 340, w: 110, d: 84, h: 71, color: "#d4c8a7", label: "ARTS STUDIO" },
-  { x: 340, y: 95, w: 128, d: 92, h: 80, color: "#d2c49f", label: "BOTANIC LAB" },
-  { x: 1020, y: 880, w: 104, d: 82, h: 68, color: "#c5d0b1", label: "PICNIC PAVILION" },
-  { x: 1690, y: 880, w: 124, d: 96, h: 79, color: "#d1c5a9", label: "MOTOR LODGE" },
-  { x: 170, y: 1020, w: 118, d: 90, h: 74, color: "#c7c9a8", label: "WATER TOWER" },
-  { x: 1520, y: 225, w: 134, d: 98, h: 82, color: "#d3d0b7", label: "CREATIVE HUB" },
+  { x: 540, y: 62, w: 126, d: 100, h: 86, color: "#b77a5b", label: "CAMPUS HALL" },
+  { x: 888, y: 58, w: 112, d: 86, h: 72, color: "#c6aa83", label: "STUDY HOUSE" },
+  { x: 140, y: 270, w: 112, d: 88, h: 74, color: "#9da8ad", label: "RESEARCH LAB" },
+  { x: 330, y: 280, w: 128, d: 92, h: 82, color: "#c28d68", label: "DATA STUDIO" },
+  { x: 1630, y: 250, w: 124, d: 92, h: 84, color: "#a9a08e", label: "OFFICE 01" },
+  { x: 1590, y: 890, w: 128, d: 100, h: 82, color: "#aa7964", label: "PIT STOP" },
+  { x: 560, y: 966, w: 122, d: 92, h: 80, color: "#c4a477", label: "WORKSHOP" },
+  { x: 870, y: 970, w: 128, d: 94, h: 78, color: "#998976", label: "TOOL SHED" },
+  { x: 1110, y: 930, w: 116, d: 90, h: 76, color: "#b98568", label: "COMMUNITY HALL" },
+  { x: 80, y: 70, w: 130, d: 105, h: 90, color: "#ba9670", label: "GARDEN HOUSE" },
+  { x: 285, y: 82, w: 105, d: 83, h: 68, color: "#9eabb0", label: "FIELD STATION" },
+  { x: 1120, y: 55, w: 145, d: 112, h: 96, color: "#c7a77b", label: "LIBRARY" },
+  { x: 1420, y: 82, w: 114, d: 88, h: 72, color: "#b4785e", label: "CAMPUS CAFE" },
+  { x: 70, y: 850, w: 138, d: 106, h: 88, color: "#a3a6a0", label: "MAKER SPACE" },
+  { x: 260, y: 1010, w: 118, d: 94, h: 78, color: "#c69f73", label: "OBSERVATORY" },
+  { x: 410, y: 880, w: 110, d: 84, h: 70, color: "#aa8067", label: "GREENHOUSE" },
+  { x: 1320, y: 1000, w: 150, d: 112, h: 90, color: "#9e9a8b", label: "MARKET HALL" },
+  { x: 1535, y: 1010, w: 116, d: 90, h: 76, color: "#bd8b69", label: "GARDEN CAFE" },
+  { x: 80, y: 340, w: 110, d: 84, h: 71, color: "#b7785a", label: "ARTS STUDIO" },
+  { x: 340, y: 95, w: 128, d: 92, h: 80, color: "#c3a47e", label: "BOTANIC LAB" },
+  { x: 1020, y: 880, w: 104, d: 82, h: 68, color: "#aa9a82", label: "PICNIC PAVILION" },
+  { x: 1690, y: 880, w: 124, d: 96, h: 79, color: "#b28a70", label: "MOTOR LODGE" },
+  { x: 170, y: 1020, w: 118, d: 90, h: 74, color: "#9fa9ad", label: "WATER TOWER" },
+  { x: 1520, y: 225, w: 134, d: 98, h: 82, color: "#c09b72", label: "CREATIVE HUB" },
 ];
 
 const STADIUM = { x: 1200, y: 200, w: 340, d: 230, h: 96 };
@@ -945,14 +945,16 @@ function prepareProjection() {
 }
 
 function drawWorld() {
-  const sky = context.createLinearGradient(0, 0, 0, game.height * .45);
-  sky.addColorStop(0, "#d6d7bb");
-  sky.addColorStop(1, "#91a77c");
+  const sky = context.createLinearGradient(0, 0, 0, game.height * .5);
+  sky.addColorStop(0, "#7ca2b4");
+  sky.addColorStop(.58, "#c7c2b1");
+  sky.addColorStop(1, "#e4c49d");
   context.fillStyle = sky;
-  context.fillRect(0, 0, game.width, game.height * .47);
+  context.fillRect(0, 0, game.width, game.height * .5);
   const ground = context.createLinearGradient(0, game.height * DRIVE.horizon, 0, game.height);
-  ground.addColorStop(0, "#82986d");
-  ground.addColorStop(1, "#637d5a");
+  ground.addColorStop(0, "#c6b99f");
+  ground.addColorStop(.55, "#b9ad99");
+  ground.addColorStop(1, "#9d9589");
   context.fillStyle = ground;
   context.fillRect(0, game.height * DRIVE.horizon, game.width, game.height * (1 - DRIVE.horizon));
   drawDistantLandscape();
@@ -1039,17 +1041,30 @@ function traceProjectedPoints(points, reverse = false) {
 function drawDistantLandscape() {
   const horizon = game.height * DRIVE.horizon;
   context.save();
-  context.fillStyle = "rgba(96, 121, 80, .35)";
+  const haze = context.createLinearGradient(0, horizon - 45, 0, horizon + 48);
+  haze.addColorStop(0, "rgba(113, 142, 153, .08)");
+  haze.addColorStop(1, "rgba(199, 157, 116, .42)");
+  context.fillStyle = haze;
   context.beginPath();
-  context.moveTo(0, horizon + 18);
-  for (let x = 0; x <= game.width + 50; x += 55) {
-    const y = horizon + 4 + Math.sin(x * .013) * 8 + Math.cos(x * .027) * 4;
-    context.lineTo(x, y);
+  context.moveTo(0, horizon + 38);
+  for (let index = 0; index <= 14; index += 1) {
+    const x = index * game.width / 14;
+    const buildingHeight = 8 + ((index * 37) % 25);
+    const width = game.width / 28;
+    context.lineTo(x, horizon + 22);
+    context.lineTo(x, horizon + 22 - buildingHeight);
+    context.lineTo(x + width, horizon + 22 - buildingHeight);
+    context.lineTo(x + width, horizon + 22);
   }
-  context.lineTo(game.width, horizon + 42);
-  context.lineTo(0, horizon + 42);
+  context.lineTo(game.width, horizon + 44);
+  context.lineTo(0, horizon + 44);
   context.closePath();
   context.fill();
+  const sunGlow = context.createRadialGradient(game.width * .78, horizon - 15, 2, game.width * .78, horizon - 15, game.width * .3);
+  sunGlow.addColorStop(0, "rgba(255, 230, 184, .38)");
+  sunGlow.addColorStop(1, "rgba(255, 230, 184, 0)");
+  context.fillStyle = sunGlow;
+  context.fillRect(game.width * .48, 0, game.width * .55, game.height * .5);
   context.restore();
 }
 
@@ -1116,7 +1131,7 @@ function drawRoadMarkings() {
       context.beginPath();
       context.moveTo(start.x, start.y);
       context.lineTo(end.x, end.y);
-      context.strokeStyle = "rgba(224, 204, 133, .88)";
+      context.strokeStyle = "rgba(240, 211, 151, .92)";
       context.lineWidth = clamp((start.scale + end.scale) * 1.3, 1, 7);
       context.stroke();
 
@@ -1129,7 +1144,7 @@ function drawRoadMarkings() {
         context.beginPath();
         context.moveTo(laneA.x, laneA.y);
         context.lineTo(laneB.x, laneB.y);
-        context.strokeStyle = "rgba(238, 239, 219, .68)";
+        context.strokeStyle = "rgba(220, 220, 208, .54)";
         context.lineWidth = clamp((laneA.scale + laneB.scale) * .8, .8, 5);
         context.stroke();
       }
@@ -1139,10 +1154,10 @@ function drawRoadMarkings() {
 
 function drawRoads() {
   context.save();
-  for (const segment of ROAD_SEGMENTS) drawRoadRibbon(segment, DRIVE.roadWidth * .58, segment.color);
-  for (const segment of ROAD_SEGMENTS) drawRoadRibbon(segment, DRIVE.roadWidth * .54, "#bcb598");
-  for (const segment of ROAD_SEGMENTS) drawRoadRibbon(segment, DRIVE.roadWidth * .5, "#48544b");
-  for (const segment of ROAD_SEGMENTS) drawRoadRibbon(segment, DRIVE.roadWidth * .45, "#505d52");
+  for (const segment of ROAD_SEGMENTS) drawRoadRibbon(segment, DRIVE.roadWidth * .61, "#79776f");
+  for (const segment of ROAD_SEGMENTS) drawRoadRibbon(segment, DRIVE.roadWidth * .56, "#d4c8b3");
+  for (const segment of ROAD_SEGMENTS) drawRoadRibbon(segment, DRIVE.roadWidth * .5, "#30363b");
+  for (const segment of ROAD_SEGMENTS) drawRoadRibbon(segment, DRIVE.roadWidth * .465, "#373e43");
   drawRoadMarkings();
   context.restore();
 }
@@ -1164,88 +1179,166 @@ function drawTree(x, y, radius) {
   if (!base || base.x < -70 || base.x > game.width + 70) return;
   const size = clamp(radius * base.scale, 2, 54);
   const trunk = clamp(size * 1.8, 3, 62);
-  context.fillStyle = "rgba(29, 44, 27, .25)";
+  context.fillStyle = "rgba(52, 48, 43, .22)";
   context.beginPath();
   context.ellipse(base.x + size * .2, base.y, size * .9, size * .33, 0, 0, Math.PI * 2);
   context.fill();
-  context.fillStyle = "#5e5740";
+  context.fillStyle = "#79634d";
   context.fillRect(base.x - size * .12, base.y - trunk, size * .24, trunk);
-  context.fillStyle = "#476b45";
+  context.fillStyle = "#80684f";
   context.beginPath();
   context.ellipse(base.x, base.y - trunk, size, size * 1.1, 0, 0, Math.PI * 2);
   context.fill();
-  context.fillStyle = "#87a36d";
+  context.fillStyle = "#b28a5c";
   context.beginPath();
   context.ellipse(base.x - size * .2, base.y - trunk - size * .18, size * .63, size * .7, 0, 0, Math.PI * 2);
   context.fill();
 }
 
 function drawBuilding(building) {
-  const corners = [
+  const footprint = [
     [building.x, building.y],
     [building.x + building.w, building.y],
     [building.x + building.w, building.y + building.d],
     [building.x, building.y + building.d],
-  ].map(([x, y]) => projectWorldPoint(x, y));
+  ];
+  const corners = footprint.map(([x, y]) => projectWorldPoint(x, y));
   if (corners.some((point) => !point || point.x < -170 || point.x > game.width + 170)) return;
-  const height = building.h;
-  const roof = corners.map((point) => ({ x: point.x, y: point.y - point.scale * height }));
-  context.save();
-  context.fillStyle = "rgba(24, 36, 25, .24)";
-  context.beginPath();
-  context.moveTo(corners[0].x + 5, corners[0].y + 5);
-  corners.slice(1).forEach((point) => context.lineTo(point.x + 5, point.y + 5));
-  context.closePath();
-  context.fill();
+  const roof = footprint.map(([x, y]) => projectWorldPoint(x, y, building.h));
+  if (roof.some((point) => !point)) return;
+  const drawPolygon = (points, fill, stroke = null, lineWidth = 1) => {
+    context.beginPath();
+    points.forEach((point, index) => {
+      if (index === 0) context.moveTo(point.x, point.y);
+      else context.lineTo(point.x, point.y);
+    });
+    context.closePath();
+    context.fillStyle = fill;
+    context.fill();
+    if (stroke) {
+      context.strokeStyle = stroke;
+      context.lineWidth = lineWidth;
+      context.stroke();
+    }
+  };
+  const facadeShade = (color, amount) => {
+    const value = Number.parseInt(color.slice(1), 16);
+    const channels = [16, 8, 0].map((shift) => Math.max(0, Math.min(255, ((value >> shift) & 255) * amount)));
+    return `rgb(${channels.map(Math.round).join(",")})`;
+  };
+  const projectWall = (points, color, stroke = null) => {
+    const projected = points.map(([x, y, z]) => projectWorldPoint(x, y, z));
+    if (projected.some((point) => !point)) return;
+    drawPolygon(projected, color, stroke);
+  };
 
-  context.fillStyle = "#817d64";
-  context.beginPath();
-  context.moveTo(corners[3].x, corners[3].y);
-  context.lineTo(corners[2].x, corners[2].y);
-  context.lineTo(roof[2].x, roof[2].y);
-  context.lineTo(roof[3].x, roof[3].y);
-  context.closePath();
-  context.fill();
-  context.fillStyle = "#aab89b";
-  context.beginPath();
-  context.moveTo(corners[0].x, corners[0].y);
-  context.lineTo(corners[3].x, corners[3].y);
-  context.lineTo(roof[3].x, roof[3].y);
-  context.lineTo(roof[0].x, roof[0].y);
-  context.closePath();
-  context.fill();
-  context.fillStyle = building.color;
-  context.beginPath();
-  context.moveTo(roof[0].x, roof[0].y);
-  roof.slice(1).forEach((point) => context.lineTo(point.x, point.y));
-  context.closePath();
-  context.fill();
-  context.strokeStyle = "rgba(248, 242, 211, .34)";
-  context.lineWidth = 1;
-  context.beginPath();
-  context.moveTo(roof[0].x, roof[0].y);
-  roof.slice(1).forEach((point) => context.lineTo(point.x, point.y));
-  context.closePath();
-  context.stroke();
+  context.save();
+  const shadow = projectEllipse(
+    building.x + building.w * .58 + building.h * .13,
+    building.y + building.d * .58 + building.h * .1,
+    building.w * .7,
+    building.d * .68,
+    0,
+    20,
+  );
+  if (shadow.every(Boolean)) {
+    context.fillStyle = "rgba(55, 47, 39, .2)";
+    context.beginPath();
+    traceProjectedPoints(shadow);
+    context.fill();
+  }
+
+  drawPolygon([corners[3], corners[2], roof[2], roof[3]], facadeShade(building.color, .57));
+  drawPolygon([corners[0], corners[3], roof[3], roof[0]], facadeShade(building.color, .76));
+  drawPolygon([roof[0], roof[1], roof[2], roof[3]], facadeShade(building.color, 1.08), "rgba(255, 246, 230, .45)");
+
+  const windowRows = building.h > 78 ? [building.h * .27, building.h * .59] : [building.h * .42];
+  const frontColumns = building.w > 120 ? 3 : 2;
+  for (let column = 0; column < frontColumns; column += 1) {
+    const centerX = building.x + building.w * ((column + 1) / (frontColumns + 1));
+    for (const sill of windowRows) {
+      const halfWindow = building.w / (frontColumns * 7.5);
+      const glazing = [
+        [centerX - halfWindow, building.y + building.d, sill],
+        [centerX + halfWindow, building.y + building.d, sill],
+        [centerX + halfWindow, building.y + building.d, sill + building.h * .2],
+        [centerX - halfWindow, building.y + building.d, sill + building.h * .2],
+      ];
+      projectWall(glazing, "#34505b", "rgba(238, 222, 194, .68)");
+      projectWall([
+        [centerX - halfWindow * .66, building.y + building.d, sill + building.h * .025],
+        [centerX - halfWindow * .32, building.y + building.d, sill + building.h * .025],
+        [centerX - halfWindow * .32, building.y + building.d, sill + building.h * .17],
+        [centerX - halfWindow * .66, building.y + building.d, sill + building.h * .17],
+      ], "rgba(211, 227, 222, .58)");
+    }
+  }
+  for (let column = 0; column < 2; column += 1) {
+    const centerY = building.y + building.d * ((column + 1) / 3);
+    for (const sill of windowRows) {
+      const halfWindow = building.d / 8;
+      projectWall([
+        [building.x + building.w, centerY - halfWindow, sill],
+        [building.x + building.w, centerY + halfWindow, sill],
+        [building.x + building.w, centerY + halfWindow, sill + building.h * .2],
+        [building.x + building.w, centerY - halfWindow, sill + building.h * .2],
+      ], "#2f4852", "rgba(238, 222, 194, .55)");
+    }
+  }
+
+  const doorWidth = building.w * .15;
+  const doorCenterX = building.x + building.w * .5;
+  projectWall([
+    [doorCenterX - doorWidth / 2, building.y + building.d, 0],
+    [doorCenterX + doorWidth / 2, building.y + building.d, 0],
+    [doorCenterX + doorWidth / 2, building.y + building.d, building.h * .36],
+    [doorCenterX - doorWidth / 2, building.y + building.d, building.h * .36],
+  ], "#51463c", "rgba(239, 218, 183, .6)");
+  projectWall([
+    [doorCenterX - doorWidth * .85, building.y + building.d, building.h * .4],
+    [doorCenterX + doorWidth * .85, building.y + building.d, building.h * .4],
+    [doorCenterX + doorWidth * .85, building.y + building.d + building.d * .12, building.h * .4],
+    [doorCenterX - doorWidth * .85, building.y + building.d + building.d * .12, building.h * .4],
+  ], facadeShade(building.color, .8), "rgba(247, 235, 211, .64)");
+  for (const elevation of windowRows.slice(1).map((sill) => sill - building.h * .07)) {
+    const band = [
+      projectWorldPoint(building.x, building.y + building.d, elevation),
+      projectWorldPoint(building.x + building.w, building.y + building.d, elevation),
+    ];
+    if (band.every(Boolean)) {
+      context.strokeStyle = "rgba(241, 225, 199, .44)";
+      context.lineWidth = Math.max(1, band[0].scale * 2.2);
+      context.beginPath();
+      context.moveTo(band[0].x, band[0].y);
+      context.lineTo(band[1].x, band[1].y);
+      context.stroke();
+    }
+  }
+
+  const parapet = footprint.map(([x, y]) => projectWorldPoint(x, y, building.h + 5));
+  if (parapet.every(Boolean)) {
+    drawPolygon([roof[3], roof[2], parapet[2], parapet[3]], facadeShade(building.color, .82));
+    drawPolygon([roof[0], roof[1], parapet[1], parapet[0]], facadeShade(building.color, 1.15));
+  }
+
+  const roofUnitX = building.x + building.w * .67;
+  const roofUnitY = building.y + building.d * .34;
+  projectWall([
+    [roofUnitX, roofUnitY, building.h],
+    [roofUnitX + building.w * .18, roofUnitY, building.h],
+    [roofUnitX + building.w * .18, roofUnitY + building.d * .13, building.h],
+    [roofUnitX, roofUnitY + building.d * .13, building.h],
+  ], "#817e76", "rgba(255, 247, 230, .42)");
+
   const roofCenter = roof.reduce((center, point) => ({
     x: center.x + point.x / roof.length,
     y: center.y + point.y / roof.length,
   }), { x: 0, y: 0 });
-  context.fillStyle = "rgba(35, 54, 41, .83)";
-  context.font = `500 ${clamp(8 * corners[0].scale, 5, 9)}px 'DM Mono', monospace`;
+  context.fillStyle = "rgba(43, 48, 48, .82)";
+  context.font = `600 ${clamp(8 * corners[0].scale, 5, 9)}px 'DM Mono', monospace`;
   context.textAlign = "center";
   context.textBaseline = "middle";
   context.fillText(building.label, roofCenter.x, roofCenter.y, Math.hypot(roof[1].x - roof[0].x, roof[1].y - roof[0].y) * .8);
-  context.fillStyle = "#405748";
-  for (let index = 1; index <= 3; index += 1) {
-    const ratio = index / 4;
-    const leftX = lerp(corners[3].x, corners[2].x, ratio);
-    const leftY = lerp(corners[3].y, corners[2].y, ratio);
-    const rightX = lerp(roof[3].x, roof[2].x, ratio);
-    const rightY = lerp(roof[3].y, roof[2].y, ratio);
-    const windowHeight = Math.max(2, (leftY - rightY) * .32);
-    context.fillRect(leftX - 3, lerp(leftY, rightY, .42), 6, windowHeight);
-  }
   context.restore();
 }
 
@@ -1906,95 +1999,211 @@ function drawCarEffects() {
 
 function drawPlayerCar() {
   const width = clamp(game.width * .052, 39, 70);
-  const length = width * 1.72;
+  const length = width * 1.86;
   const x = game.width / 2;
   const y = game.height * .82;
   context.save();
   context.translate(x, y);
   context.rotate(-game.car.visualSteer * .045 + game.car.driftAngle * .18);
-  context.fillStyle = "rgba(16, 25, 19, .35)";
+  context.fillStyle = "rgba(28, 31, 33, .3)";
   context.beginPath();
-  context.ellipse(3, length * .2, width * .63, length * .55, 0, 0, Math.PI * 2);
+  context.ellipse(4, length * .18, width * .7, length * .55, 0, 0, Math.PI * 2);
   context.fill();
-  context.fillStyle = "#222d27";
+
+  const tireGradient = context.createLinearGradient(-width * .58, 0, width * .58, 0);
+  tireGradient.addColorStop(0, "#111719");
+  tireGradient.addColorStop(.24, "#343a3b");
+  tireGradient.addColorStop(.5, "#171b1d");
+  tireGradient.addColorStop(.76, "#343a3b");
+  tireGradient.addColorStop(1, "#111719");
+  context.fillStyle = tireGradient;
   context.beginPath();
-  context.moveTo(-width * .47, -length * .23);
-  context.lineTo(-width * .53, -length * .07);
-  context.lineTo(-width * .53, length * .31);
-  context.lineTo(-width * .4, length * .4);
-  context.lineTo(width * .4, length * .4);
-  context.lineTo(width * .53, length * .31);
-  context.lineTo(width * .53, -length * .07);
-  context.lineTo(width * .47, -length * .23);
+  context.roundRect(-width * .57, -length * .26, width * .2, length * .68, width * .07);
+  context.roundRect(width * .37, -length * .26, width * .2, length * .68, width * .07);
+  context.fill();
+
+  const shell = new Path2D();
+  shell.moveTo(-width * .4, -length * .45);
+  shell.quadraticCurveTo(-width * .35, -length * .51, -width * .2, -length * .52);
+  shell.lineTo(width * .2, -length * .52);
+  shell.quadraticCurveTo(width * .35, -length * .51, width * .4, -length * .45);
+  shell.lineTo(width * .48, -length * .12);
+  shell.quadraticCurveTo(width * .52, length * .06, width * .47, length * .35);
+  shell.quadraticCurveTo(width * .45, length * .47, width * .34, length * .49);
+  shell.lineTo(-width * .34, length * .49);
+  shell.quadraticCurveTo(-width * .45, length * .47, -width * .47, length * .35);
+  shell.quadraticCurveTo(-width * .52, length * .06, -width * .48, -length * .12);
+  shell.closePath();
+
+  const bodyGradient = context.createLinearGradient(-width * .48, -length * .35, width * .48, length * .38);
+  bodyGradient.addColorStop(0, "#6d8491");
+  bodyGradient.addColorStop(.18, "#c8d2d3");
+  bodyGradient.addColorStop(.38, "#8fa4ad");
+  bodyGradient.addColorStop(.58, "#506b7b");
+  bodyGradient.addColorStop(.8, "#8298a1");
+  bodyGradient.addColorStop(1, "#354a58");
+  context.fillStyle = bodyGradient;
+  context.fill(shell);
+  context.strokeStyle = "rgba(236, 243, 241, .82)";
+  context.lineWidth = Math.max(1, width * .025);
+  context.stroke(shell);
+
+  const glassGradient = context.createLinearGradient(0, -length * .39, 0, length * .04);
+  glassGradient.addColorStop(0, "#172a35");
+  glassGradient.addColorStop(.48, "#36515e");
+  glassGradient.addColorStop(1, "#a2b9bc");
+  context.beginPath();
+  context.moveTo(-width * .31, -length * .35);
+  context.quadraticCurveTo(0, -length * .41, width * .31, -length * .35);
+  context.lineTo(width * .26, -length * .08);
+  context.quadraticCurveTo(0, -length * .015, -width * .26, -length * .08);
+  context.closePath();
+  context.fillStyle = glassGradient;
+  context.fill();
+  context.strokeStyle = "rgba(210, 228, 230, .7)";
+  context.lineWidth = Math.max(1, width * .018);
+  context.stroke();
+
+  context.save();
+  context.beginPath();
+  context.moveTo(-width * .28, -length * .34);
+  context.quadraticCurveTo(0, -length * .4, width * .28, -length * .34);
+  context.lineTo(width * .24, -length * .1);
+  context.quadraticCurveTo(0, -length * .04, -width * .24, -length * .1);
+  context.closePath();
+  context.clip();
+  const glassReflection = context.createLinearGradient(-width * .28, -length * .33, width * .24, -length * .1);
+  glassReflection.addColorStop(0, "rgba(236, 245, 240, .45)");
+  glassReflection.addColorStop(.28, "rgba(236, 245, 240, .08)");
+  glassReflection.addColorStop(.6, "rgba(236, 245, 240, .26)");
+  glassReflection.addColorStop(1, "rgba(236, 245, 240, .02)");
+  context.fillStyle = glassReflection;
+  context.fillRect(-width * .4, -length * .44, width * .8, length * .48);
+  context.restore();
+
+  context.strokeStyle = "rgba(30, 48, 57, .68)";
+  context.lineWidth = Math.max(1, width * .02);
+  context.beginPath();
+  context.moveTo(-width * .32, -length * .05);
+  context.quadraticCurveTo(0, length * .015, width * .32, -length * .05);
+  context.stroke();
+
+  const trunkGradient = context.createLinearGradient(0, 0, 0, length * .3);
+  trunkGradient.addColorStop(0, "#9bacb0");
+  trunkGradient.addColorStop(.48, "#78909b");
+  trunkGradient.addColorStop(1, "#4b6471");
+  context.fillStyle = trunkGradient;
+  context.beginPath();
+  context.moveTo(-width * .39, length * .02);
+  context.quadraticCurveTo(0, length * .08, width * .39, length * .02);
+  context.lineTo(width * .42, length * .27);
+  context.quadraticCurveTo(0, length * .34, -width * .42, length * .27);
   context.closePath();
   context.fill();
-  context.fillStyle = "#d9ed9f";
+
+  context.strokeStyle = "rgba(238, 244, 236, .5)";
+  context.lineWidth = Math.max(1, width * .018);
   context.beginPath();
-  context.moveTo(-width * .39, -length * .3);
-  context.lineTo(-width * .33, -length * .52);
-  context.quadraticCurveTo(0, -length * .62, width * .33, -length * .52);
-  context.lineTo(width * .39, -length * .3);
-  context.lineTo(width * .48, length * .27);
-  context.quadraticCurveTo(0, length * .43, -width * .48, length * .27);
+  context.moveTo(-width * .37, length * .08);
+  context.quadraticCurveTo(0, length * .13, width * .37, length * .08);
+  context.moveTo(-width * .4, length * .27);
+  context.quadraticCurveTo(0, length * .32, width * .4, length * .27);
+  context.stroke();
+
+  const bumperGradient = context.createLinearGradient(0, length * .34, 0, length * .49);
+  bumperGradient.addColorStop(0, "#526a76");
+  bumperGradient.addColorStop(.42, "#344954");
+  bumperGradient.addColorStop(.55, "#d0d5d0");
+  bumperGradient.addColorStop(1, "#647681");
+  context.fillStyle = bumperGradient;
+  context.beginPath();
+  context.moveTo(-width * .42, length * .35);
+  context.quadraticCurveTo(0, length * .4, width * .42, length * .35);
+  context.lineTo(width * .4, length * .46);
+  context.quadraticCurveTo(0, length * .51, -width * .4, length * .46);
   context.closePath();
   context.fill();
-  context.fillStyle = "#354a3f";
+
+  const lampGlow = game.car.braking ? "#ff5d52" : "#d44a42";
+  const lampGradient = context.createLinearGradient(0, length * .2, 0, length * .32);
+  lampGradient.addColorStop(0, "#ffb2a1");
+  lampGradient.addColorStop(.24, lampGlow);
+  lampGradient.addColorStop(1, "#842e31");
+  context.fillStyle = lampGradient;
+  for (const side of [-1, 1]) {
+    context.beginPath();
+    context.moveTo(side * width * .41, length * .19);
+    context.lineTo(side * width * .18, length * .21);
+    context.lineTo(side * width * .17, length * .3);
+    context.lineTo(side * width * .4, length * .32);
+    context.closePath();
+    context.fill();
+    context.fillStyle = "rgba(255, 224, 193, .88)";
+    context.fillRect(side < 0 ? -width * .37 : width * .3, length * .235, width * .07, length * .025);
+    context.fillStyle = lampGradient;
+  }
+
+  context.fillStyle = "#d9ddda";
   context.beginPath();
-  context.moveTo(-width * .3, -length * .31);
-  context.lineTo(-width * .24, -length * .49);
-  context.quadraticCurveTo(0, -length * .55, width * .24, -length * .49);
-  context.lineTo(width * .3, -length * .31);
-  context.closePath();
+  context.roundRect(-width * .15, length * .34, width * .3, length * .105, width * .018);
   context.fill();
-  context.fillStyle = "#748c78";
+  context.strokeStyle = "rgba(42, 54, 60, .75)";
+  context.lineWidth = 0.8;
+  context.stroke();
+  context.fillStyle = "#34454e";
+  context.fillRect(-width * .11, length * .36, width * .22, length * .065);
+  context.fillStyle = "#e9e3ce";
+  context.font = `700 ${clamp(width * .075, 3.5, 5.2)}px 'DM Mono', monospace`;
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+  context.fillText("AH 26", 0, length * .393);
+
+  context.fillStyle = "#20272a";
   context.beginPath();
-  context.moveTo(-width * .28, -length * .24);
-  context.lineTo(width * .28, -length * .24);
-  context.lineTo(width * .34, length * .08);
-  context.lineTo(-width * .34, length * .08);
-  context.closePath();
+  context.roundRect(-width * .13, length * .455, width * .09, length * .025, 2);
+  context.roundRect(width * .04, length * .455, width * .09, length * .025, 2);
   context.fill();
-  context.fillStyle = game.car.braking ? "#ff7668" : "#b75b50";
-  context.fillRect(-width * .42, length * .27, width * .2, length * .09);
-  context.fillRect(width * .22, length * .27, width * .2, length * .09);
+
   if (game.car.boosting) {
     const flameLength = 0.5 + Math.sin(performance.now() * 0.025) * 0.06;
-    context.fillStyle = "#f4d477";
+    context.fillStyle = "#f5a34d";
     context.beginPath();
-    context.moveTo(-width * .3, length * .34);
-    context.lineTo(-width * .2, length * .34);
-    context.lineTo(-width * .25, length * flameLength);
+    context.moveTo(-width * .15, length * .47);
+    context.lineTo(-width * .06, length * .47);
+    context.lineTo(-width * .1, length * flameLength);
     context.closePath();
     context.fill();
     context.beginPath();
-    context.moveTo(width * .2, length * .34);
-    context.lineTo(width * .3, length * .34);
-    context.lineTo(width * .25, length * flameLength);
+    context.moveTo(width * .06, length * .47);
+    context.lineTo(width * .15, length * .47);
+    context.lineTo(width * .1, length * flameLength);
     context.closePath();
     context.fill();
   }
-  context.fillStyle = "#f2e4b8";
-  context.fillRect(-width * .38, -length * .5, width * .14, length * .045);
-  context.fillRect(width * .24, -length * .5, width * .14, length * .045);
+
   game.earnedStickers.forEach((id, index) => {
     const sticker = STICKERS.find((item) => item.id === id);
     if (!sticker) return;
     const column = index % 3;
     const row = Math.floor(index / 3);
-    const stickerWidth = width * .19;
-    const stickerHeight = length * .075;
-    const stickerX = (column - 1) * width * .22;
-    const stickerY = length * (.045 + row * .095);
+    const stickerWidth = width * .13;
+    const stickerHeight = length * .05;
+    const stickerX = (column - 1) * width * .15;
+    const stickerY = length * (.1 + row * .055);
+    context.fillStyle = "rgba(239, 240, 226, .9)";
+    context.beginPath();
+    context.roundRect(stickerX - stickerWidth / 2, stickerY, stickerWidth, stickerHeight, 2);
+    context.fill();
     context.fillStyle = sticker.color;
     context.fillRect(stickerX - stickerWidth / 2, stickerY, stickerWidth, stickerHeight);
-    context.strokeStyle = "#26352a";
+    context.strokeStyle = "rgba(28, 39, 45, .8)";
     context.lineWidth = 0.7;
     context.strokeRect(stickerX - stickerWidth / 2, stickerY, stickerWidth, stickerHeight);
     if (sticker.trophy) {
-      drawWorldCupTrophy(stickerX, stickerY + stickerHeight * .42, stickerHeight / 32);
+      drawWorldCupTrophy(stickerX, stickerY + stickerHeight * .42, stickerHeight / 34);
     } else {
-      context.fillStyle = "#203026";
-      context.font = `700 ${clamp(stickerHeight * .8, 3, 5)}px 'DM Mono', monospace`;
+      context.fillStyle = "#24343b";
+      context.font = `700 ${clamp(stickerHeight * .82, 3, 4.5)}px 'DM Mono', monospace`;
       context.textAlign = "center";
       context.textBaseline = "middle";
       context.fillText(sticker.mark, stickerX, stickerY + stickerHeight * .52, stickerWidth);
