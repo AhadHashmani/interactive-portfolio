@@ -104,6 +104,10 @@ const BUILDINGS = [
 const STADIUM = { x: 1200, y: 200, w: 340, d: 230, h: 96 };
 const FOUNTAIN = { x: 900, y: 850, radius: 34 };
 const RENDER_DISTANCE = 2600 * WORLD_SCALE;
+const ROAD_INTERSECTIONS = [
+  { x: 780 * WORLD_SCALE, y: 510 * WORLD_SCALE },
+  { x: 780 * WORLD_SCALE, y: 700 * WORLD_SCALE },
+];
 
 function scaleWorldLayout() {
   ROAD_SEGMENTS.forEach((road) => {
@@ -1111,41 +1115,51 @@ function roadPoint(segment, along, offset = 0) {
 }
 
 function drawRoadRibbon(segment, halfWidth, color) {
-  const dx = segment.x2 - segment.x1;
-  const dy = segment.y2 - segment.y1;
-  const length = Math.hypot(dx, dy);
-  const startDepth = (segment.x1 - projection.cameraX) * projection.forwardX + (segment.y1 - projection.cameraY) * projection.forwardY;
-  const endDepth = (segment.x2 - projection.cameraX) * projection.forwardX + (segment.y2 - projection.cameraY) * projection.forwardY;
-  const depthDelta = endDepth - startDepth;
-  let startAlong = 0;
-  let endAlong = length;
-  const nearDepth = DRIVE.roadWidth * .72;
-  if (Math.abs(depthDelta) < .001) {
-    if (startDepth < nearDepth || startDepth > RENDER_DISTANCE) return;
-  } else {
-    const nearAlong = (nearDepth - startDepth) / depthDelta * length;
-    const farAlong = (RENDER_DISTANCE - startDepth) / depthDelta * length;
-    startAlong = Math.max(0, Math.min(nearAlong, farAlong));
-    endAlong = Math.min(length, Math.max(nearAlong, farAlong));
-    if (startAlong >= endAlong) return;
-  }
-  const leftStart = roadPoint(segment, startAlong, -halfWidth);
-  const leftEnd = roadPoint(segment, endAlong, -halfWidth);
-  const rightEnd = roadPoint(segment, endAlong, halfWidth);
-  const rightStart = roadPoint(segment, startAlong, halfWidth);
-  const points = [
-    projectWorldPoint(leftStart.x, leftStart.y),
-    projectWorldPoint(leftEnd.x, leftEnd.y),
-    projectWorldPoint(rightEnd.x, rightEnd.y),
-    projectWorldPoint(rightStart.x, rightStart.y),
+  const length = Math.hypot(segment.x2 - segment.x1, segment.y2 - segment.y1);
+  const polygon = [
+    roadPoint(segment, 0, -halfWidth),
+    roadPoint(segment, length, -halfWidth),
+    roadPoint(segment, length, halfWidth),
+    roadPoint(segment, 0, halfWidth),
   ];
-  if (points.some((point) => !point)) return;
+  const points = projectClippedGroundPolygon(polygon);
+  if (!points) return;
   context.fillStyle = color;
   context.beginPath();
   context.moveTo(points[0].x, points[0].y);
   points.slice(1).forEach((point) => context.lineTo(point.x, point.y));
   context.closePath();
   context.fill();
+}
+
+function projectClippedGroundPolygon(polygon) {
+  const nearDepth = DRIVE.roadWidth * .3;
+  let clipped = polygon;
+  for (const [boundary, isInside] of [
+    [nearDepth, (depth) => depth >= nearDepth],
+    [RENDER_DISTANCE, (depth) => depth <= RENDER_DISTANCE],
+  ]) {
+    const output = [];
+    clipped.forEach((point, index) => {
+      const previous = clipped[(index + clipped.length - 1) % clipped.length];
+      const pointDepth = projectedDepth(point.x, point.y);
+      const previousDepth = projectedDepth(previous.x, previous.y);
+      const pointInside = isInside(pointDepth);
+      const previousInside = isInside(previousDepth);
+      if (pointInside !== previousInside) {
+        const ratio = (boundary - previousDepth) / (pointDepth - previousDepth);
+        output.push({
+          x: lerp(previous.x, point.x, ratio),
+          y: lerp(previous.y, point.y, ratio),
+        });
+      }
+      if (pointInside) output.push(point);
+    });
+    clipped = output;
+    if (clipped.length < 3) return null;
+  }
+  const projected = clipped.map((point) => projectWorldPoint(point.x, point.y));
+  return projected.every(Boolean) ? projected : null;
 }
 
 function drawRoadMarkings() {
@@ -1155,6 +1169,8 @@ function drawRoadMarkings() {
       const dashEnd = Math.min(along + 48 * WORLD_SCALE, length);
       const centerStart = roadPoint(segment, along);
       const centerEnd = roadPoint(segment, dashEnd);
+      const dashCenter = roadPoint(segment, (along + dashEnd) / 2);
+      if (ROAD_INTERSECTIONS.some((intersection) => distance(dashCenter, intersection) < DRIVE.roadWidth * 1.15)) continue;
       const start = projectWorldPoint(centerStart.x, centerStart.y);
       const end = projectWorldPoint(centerEnd.x, centerEnd.y);
       if (!start || !end) continue;
@@ -1188,8 +1204,28 @@ function drawRoads() {
   for (const segment of ROAD_SEGMENTS) drawRoadRibbon(segment, DRIVE.roadWidth * .56, "#d4c8b3");
   for (const segment of ROAD_SEGMENTS) drawRoadRibbon(segment, DRIVE.roadWidth * .5, "#30363b");
   for (const segment of ROAD_SEGMENTS) drawRoadRibbon(segment, DRIVE.roadWidth * .465, "#373e43");
+  drawRoadIntersections();
   drawRoadMarkings();
   context.restore();
+}
+
+function drawRoadIntersections() {
+  const halfSize = DRIVE.roadWidth * .51;
+  for (const intersection of ROAD_INTERSECTIONS) {
+    const apron = projectClippedGroundPolygon([
+      { x: intersection.x - halfSize, y: intersection.y - halfSize },
+      { x: intersection.x + halfSize, y: intersection.y - halfSize },
+      { x: intersection.x + halfSize, y: intersection.y + halfSize },
+      { x: intersection.x - halfSize, y: intersection.y + halfSize },
+    ]);
+    if (!apron) continue;
+    context.fillStyle = "#373e43";
+    context.beginPath();
+    context.moveTo(apron[0].x, apron[0].y);
+    apron.slice(1).forEach((point) => context.lineTo(point.x, point.y));
+    context.closePath();
+    context.fill();
+  }
 }
 
 function drawTrees() {
