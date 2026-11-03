@@ -31,6 +31,9 @@ const DRIVE = {
   interactionExitRadius: 160 * WORLD_SCALE,
   interactionSpeed: 48,
   cameraSmoothing: 8.5,
+  boostDrain: 12.5,
+  boostRecharge: 16,
+  boostSpeedMultiplier: 1.5,
   fixedStep: 1 / 60,
 };
 
@@ -139,8 +142,10 @@ function scaleWorldLayout() {
 scaleWorldLayout();
 
 const SCENERY_TREES = [];
+const SCENERY_STREETLIGHTS = [];
 const canvas = document.querySelector("#worldCanvas");
 const context = canvas.getContext("2d");
+const TREE_SPRITES = createTreeSprites();
 const driveView = document.querySelector("#driveView");
 const portfolioView = document.querySelector("#portfolioView");
 const welcomeCard = document.querySelector("#welcomeCard");
@@ -220,9 +225,46 @@ for (let x = 45; x < DRIVE.worldWidth; x += 120) {
     if (ROAD_SEGMENTS.some((segment) => distanceToSegment(tx, ty, segment) < DRIVE.roadWidth * .65)) continue;
     if (BUILDINGS.some((building) => tx > building.x - 22 && tx < building.x + building.w + 22
       && ty > building.y - 22 && ty < building.y + building.d + 22)) continue;
-    SCENERY_TREES.push({ x: tx, y: ty, radius: 10 + ((x + y) % 5) });
+    SCENERY_TREES.push({
+      x: tx,
+      y: ty,
+      radius: 10 + ((x + y) % 5),
+      variant: Math.abs(Math.floor((x + y) / 120)) % 3,
+    });
   }
 }
+
+ROAD_SEGMENTS.forEach((road, roadIndex) => {
+  const length = Math.hypot(road.x2 - road.x1, road.y2 - road.y1);
+  let side = roadIndex % 2 ? 1 : -1;
+  for (let along = 120 * WORLD_SCALE; along < length - 100 * WORLD_SCALE; along += 300 * WORLD_SCALE) {
+    const point = roadPoint(road, along, side * DRIVE.roadWidth * 0.72);
+    side *= -1;
+    if (ROAD_INTERSECTIONS.some((intersection) => distance(point, intersection) < DRIVE.roadWidth * 1.3)) continue;
+    if (BUILDINGS.some((building) => point.x > building.x - 24 && point.x < building.x + building.w + 24
+      && point.y > building.y - 24 && point.y < building.y + building.d + 24)) continue;
+    SCENERY_STREETLIGHTS.push({ ...point, height: 72 * WORLD_SCALE });
+  }
+});
+
+const SCENE_STRUCTURES = [
+  ...BUILDINGS.map((building) => ({
+    kind: "building",
+    item: building,
+    x: building.x + building.w / 2,
+    y: building.y + building.d / 2,
+    depth: 0,
+  })),
+  { kind: "stadium", x: STADIUM.x + STADIUM.w / 2, y: STADIUM.y + STADIUM.d / 2, depth: 0 },
+  { kind: "fountain", x: FOUNTAIN.x, y: FOUNTAIN.y, depth: 0 },
+  ...SCENERY_STREETLIGHTS.map((light) => ({
+    kind: "streetlight",
+    item: light,
+    x: light.x,
+    y: light.y,
+    depth: 0,
+  })),
+];
 
 function element(tag, className, text) {
   const node = document.createElement(tag);
@@ -265,6 +307,10 @@ function exhibitWorldPoint(exhibit) {
   const along = (exhibit.x - road.x1) * (dx / length) + (exhibit.y - road.y1) * (dy / length);
   return roadPoint(road, along, exhibit.side * DRIVE.exhibitOffset);
 }
+
+const SCENE_EXHIBITS = exhibits
+  .map((exhibit) => ({ exhibit, position: exhibitWorldPoint(exhibit), depth: 0 }))
+  .filter(({ position }) => position);
 
 function makeTagRow(values) {
   const row = element("div", "tag-row");
@@ -596,7 +642,7 @@ function openSection(sectionId, route = sectionId) {
         ["W / ↑", "Accelerate"],
         ["S / ↓", "Brake, then reverse"],
         ["A / ← · D / →", "Steer"],
-        ["Shift", "Boost while moving; charge refills when released"],
+        ["Shift", "About 8 seconds of boost from full charge; it refills when released"],
         ["Hold Space + steer", "Drift through turns and leave tire smoke"],
         ["E / Enter", "Open a nearby checkpoint or exhibit"],
         ["Checkpoints", "Collect a career sticker; role billboards have their own rewards"],
@@ -728,10 +774,10 @@ function updateCar(dt) {
   const onRoad = ROAD_SEGMENTS.some((segment) => distanceToSegment(car.x, car.y, segment) < DRIVE.roadWidth * 0.57);
   const boosting = controls.boost && game.boostCharge > 0 && car.speed >= 0;
   car.boosting = boosting;
-  if (boosting) game.boostCharge = Math.max(0, game.boostCharge - 58 * dt);
-  else game.boostCharge = Math.min(100, game.boostCharge + 24 * dt);
+  if (boosting) game.boostCharge = Math.max(0, game.boostCharge - DRIVE.boostDrain * dt);
+  else game.boostCharge = Math.min(100, game.boostCharge + DRIVE.boostRecharge * dt);
   const limit = (onRoad ? DRIVE.maxForwardSpeed : DRIVE.maxForwardSpeed * DRIVE.offRoadSpeedRatio)
-    * (boosting ? 1.42 : 1);
+    * (boosting ? DRIVE.boostSpeedMultiplier : 1);
   const reverseLimit = onRoad ? DRIVE.maxReverseSpeed : DRIVE.maxReverseSpeed * DRIVE.offRoadSpeedRatio;
 
   if (controls.accelerate) {
@@ -941,7 +987,7 @@ function resizeCanvas() {
   const bounds = driveView.getBoundingClientRect();
   game.width = Math.max(1, bounds.width);
   game.height = Math.max(1, bounds.height);
-  game.pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+  game.pixelRatio = Math.min(window.devicePixelRatio || 1, isMobile.matches ? 1.5 : 2);
   canvas.width = Math.round(game.width * game.pixelRatio);
   canvas.height = Math.round(game.height * game.pixelRatio);
   canvas.style.width = `${game.width}px`;
@@ -994,26 +1040,22 @@ function drawWorld() {
   drawDistantLandscape();
   drawRoads();
   drawTrees();
-  const structures = [
-    ...BUILDINGS.map((building) => ({
-      depth: projectedDepth(building.x + building.w / 2, building.y + building.d / 2),
-      draw: () => drawBuilding(building),
-    })),
-    {
-      depth: projectedDepth(STADIUM.x + STADIUM.w / 2, STADIUM.y + STADIUM.d / 2),
-      draw: drawStadiumPerspective,
-    },
-    {
-      depth: projectedDepth(FOUNTAIN.x, FOUNTAIN.y),
-      draw: drawFountainPerspective,
-    },
-  ];
-  structures.sort((a, b) => b.depth - a.depth).forEach((structure) => structure.draw());
+  for (const structure of SCENE_STRUCTURES) {
+    structure.depth = projectedDepth(structure.x, structure.y);
+  }
+  SCENE_STRUCTURES.sort(compareSceneDepth);
+  for (const structure of SCENE_STRUCTURES) {
+    if (structure.kind === "building") drawBuilding(structure.item);
+    else if (structure.kind === "stadium") drawStadiumPerspective();
+    else if (structure.kind === "fountain") drawFountainPerspective();
+    else drawStreetLight(structure.item);
+  }
   drawRouteSigns();
-  exhibits
-    .map((exhibit) => ({ exhibit, depth: (exhibit.x - projection.cameraX) * projection.forwardX + (exhibit.y - projection.cameraY) * projection.forwardY }))
-    .sort((a, b) => b.depth - a.depth)
-    .forEach(({ exhibit }) => drawExhibit(exhibit));
+  for (const entry of SCENE_EXHIBITS) {
+    entry.depth = projectedDepth(entry.position.x, entry.position.y);
+  }
+  SCENE_EXHIBITS.sort(compareSceneDepth);
+  for (const { exhibit, position } of SCENE_EXHIBITS) drawExhibit(exhibit, position);
   districts.forEach(drawDistrict);
   drawCheckpointBeacon(getNextCheckpoint());
   drawCarEffects();
@@ -1022,6 +1064,10 @@ function drawWorld() {
 
 function projectedDepth(x, y) {
   return (x - projection.cameraX) * projection.forwardX + (y - projection.cameraY) * projection.forwardY;
+}
+
+function compareSceneDepth(a, b) {
+  return b.depth - a.depth;
 }
 
 function projectEllipse(x, y, radiusX, radiusY, elevation = 0, steps = 48) {
@@ -1229,29 +1275,113 @@ function drawRoadIntersections() {
 }
 
 function drawTrees() {
-  SCENERY_TREES.forEach(({ x, y, radius }) => drawTree(x, y, radius));
+  for (const tree of SCENERY_TREES) drawTree(tree);
 }
 
-function drawTree(x, y, radius) {
+function createTreeSprites() {
+  const palettes = [
+    { dark: "#375541", mid: "#54744a", light: "#82905a" },
+    { dark: "#46533e", mid: "#6d7548", light: "#a18a55" },
+    { dark: "#34564e", mid: "#4b7863", light: "#8e9a65" },
+  ];
+  return palettes.map((palette, variant) => {
+    const sprite = document.createElement("canvas");
+    sprite.width = 144;
+    sprite.height = 176;
+    const spriteContext = sprite.getContext("2d");
+    const canopy = spriteContext.createRadialGradient(62, 48, 9, 70, 72, 67);
+    canopy.addColorStop(0, palette.light);
+    canopy.addColorStop(0.48, palette.mid);
+    canopy.addColorStop(1, palette.dark);
+    spriteContext.fillStyle = "rgba(35, 44, 35, .22)";
+    spriteContext.beginPath();
+    spriteContext.ellipse(82, 162, 46, 9, 0, 0, Math.PI * 2);
+    spriteContext.fill();
+    spriteContext.fillStyle = variant === 1 ? "#68513e" : "#755b42";
+    spriteContext.beginPath();
+    spriteContext.moveTo(64, 158);
+    spriteContext.lineTo(59, 91);
+    spriteContext.lineTo(73, 91);
+    spriteContext.lineTo(83, 158);
+    spriteContext.closePath();
+    spriteContext.fill();
+    spriteContext.strokeStyle = "rgba(220, 194, 139, .35)";
+    spriteContext.lineWidth = 3;
+    spriteContext.beginPath();
+    spriteContext.moveTo(65, 122);
+    spriteContext.lineTo(43, 91);
+    spriteContext.moveTo(73, 117);
+    spriteContext.lineTo(97, 82);
+    spriteContext.stroke();
+    spriteContext.fillStyle = palette.dark;
+    const clusters = variant === 1
+      ? [[69, 61, 48], [42, 70, 29], [97, 69, 31], [62, 34, 30]]
+      : [[72, 66, 52], [43, 74, 32], [101, 73, 34], [57, 39, 34], [91, 42, 30]];
+    for (const [x, y, radius] of clusters) {
+      spriteContext.beginPath();
+      spriteContext.arc(x, y, radius, 0, Math.PI * 2);
+      spriteContext.fill();
+    }
+    spriteContext.fillStyle = canopy;
+    spriteContext.beginPath();
+    spriteContext.ellipse(70, 61, variant === 1 ? 46 : 49, 51, 0, 0, Math.PI * 2);
+    spriteContext.fill();
+    spriteContext.fillStyle = "rgba(212, 208, 145, .24)";
+    spriteContext.beginPath();
+    spriteContext.ellipse(50, 45, 18, 24, -.35, 0, Math.PI * 2);
+    spriteContext.fill();
+    spriteContext.fillStyle = "rgba(32, 54, 43, .22)";
+    spriteContext.beginPath();
+    spriteContext.ellipse(92, 82, 29, 22, .28, 0, Math.PI * 2);
+    spriteContext.fill();
+    return sprite;
+  });
+}
+
+function drawTree({ x, y, radius, variant }) {
   const base = projectWorldPoint(x, y);
   if (!base || base.x < -70 || base.x > game.width + 70) return;
   const size = clamp(radius * base.scale, 2, 54);
-  const trunk = clamp(size * 1.8, 3, 62);
+  const width = size * 2.8;
+  const height = size * 3.2;
   context.save();
   context.globalAlpha = clamp((RENDER_DISTANCE - base.depth) / (RENDER_DISTANCE * .24), .16, 1);
-  context.fillStyle = "rgba(52, 48, 43, .22)";
+  context.drawImage(TREE_SPRITES[variant], base.x - width * .5, base.y - height, width, height);
+  context.restore();
+}
+
+function drawStreetLight(light) {
+  const base = projectWorldPoint(light.x, light.y);
+  const top = projectWorldPoint(light.x, light.y, light.height);
+  if (!base || !top || base.x < -40 || base.x > game.width + 40) return;
+  const scale = clamp(base.scale, 0.3, 1.5);
+  const armEnd = projectWorldPoint(light.x + 14 * WORLD_SCALE, light.y, light.height);
+  if (!armEnd) return;
+  context.save();
+  context.globalAlpha = clamp((RENDER_DISTANCE - base.depth) / (RENDER_DISTANCE * .28), .2, .92);
+  context.strokeStyle = "rgba(42, 48, 44, .75)";
+  context.lineWidth = Math.max(1, 3 * scale);
   context.beginPath();
-  context.ellipse(base.x + size * .2, base.y, size * .9, size * .33, 0, 0, Math.PI * 2);
+  context.moveTo(base.x, base.y);
+  context.lineTo(top.x, top.y);
+  context.lineTo(armEnd.x, armEnd.y);
+  context.stroke();
+  context.strokeStyle = "rgba(235, 219, 180, .78)";
+  context.lineWidth = Math.max(1, 2 * scale);
+  context.beginPath();
+  context.moveTo(base.x - 4 * scale, base.y);
+  context.lineTo(top.x - 1 * scale, top.y + 2 * scale);
+  context.stroke();
+  const lampGlow = context.createRadialGradient(armEnd.x, armEnd.y, 0, armEnd.x, armEnd.y, 13 * scale);
+  lampGlow.addColorStop(0, "rgba(255, 232, 171, .9)");
+  lampGlow.addColorStop(1, "rgba(255, 207, 123, 0)");
+  context.fillStyle = lampGlow;
+  context.beginPath();
+  context.arc(armEnd.x, armEnd.y, 13 * scale, 0, Math.PI * 2);
   context.fill();
-  context.fillStyle = "#79634d";
-  context.fillRect(base.x - size * .12, base.y - trunk, size * .24, trunk);
-  context.fillStyle = "#80684f";
+  context.fillStyle = "#f3d28d";
   context.beginPath();
-  context.ellipse(base.x, base.y - trunk, size, size * 1.1, 0, 0, Math.PI * 2);
-  context.fill();
-  context.fillStyle = "#b28a5c";
-  context.beginPath();
-  context.ellipse(base.x - size * .2, base.y - trunk - size * .18, size * .63, size * .7, 0, 0, Math.PI * 2);
+  context.arc(armEnd.x, armEnd.y, Math.max(1.5, 2.4 * scale), 0, Math.PI * 2);
   context.fill();
   context.restore();
 }
@@ -1314,6 +1444,13 @@ function drawBuilding(building) {
   drawPolygon([corners[0], corners[3], roof[3], roof[0]], facadeShade(building.color, .76));
   drawPolygon([roof[0], roof[1], roof[2], roof[3]], facadeShade(building.color, 1.08), "rgba(255, 246, 230, .45)");
 
+  projectWall([
+    [building.x, building.y + building.d, 2],
+    [building.x + building.w, building.y + building.d, 2],
+    [building.x + building.w, building.y + building.d, building.h * .07],
+    [building.x, building.y + building.d, building.h * .07],
+  ], facadeShade(building.color, .7), "rgba(241, 225, 199, .3)");
+
   const windowRows = building.h > 78 ? [building.h * .27, building.h * .59] : [building.h * .42];
   const frontColumns = building.w > 120 ? 3 : 2;
   for (let column = 0; column < frontColumns; column += 1) {
@@ -1348,6 +1485,17 @@ function drawBuilding(building) {
     }
   }
 
+  for (const fraction of [.09, .91]) {
+    const columnX = building.x + building.w * fraction;
+    const columnWidth = building.w * .025;
+    projectWall([
+      [columnX - columnWidth / 2, building.y + building.d, building.h * .08],
+      [columnX + columnWidth / 2, building.y + building.d, building.h * .08],
+      [columnX + columnWidth / 2, building.y + building.d, building.h * .9],
+      [columnX - columnWidth / 2, building.y + building.d, building.h * .9],
+    ], "rgba(244, 224, 187, .26)");
+  }
+
   const doorWidth = building.w * .15;
   const doorCenterX = building.x + building.w * .5;
   projectWall([
@@ -1362,6 +1510,12 @@ function drawBuilding(building) {
     [doorCenterX + doorWidth * .85, building.y + building.d + building.d * .12, building.h * .4],
     [doorCenterX - doorWidth * .85, building.y + building.d + building.d * .12, building.h * .4],
   ], facadeShade(building.color, .8), "rgba(247, 235, 211, .64)");
+  projectWall([
+    [doorCenterX - doorWidth * .8, building.y + building.d, building.h * .4],
+    [doorCenterX + doorWidth * .8, building.y + building.d, building.h * .4],
+    [doorCenterX + doorWidth * .8, building.y + building.d + building.d * .13, building.h * .4],
+    [doorCenterX - doorWidth * .8, building.y + building.d + building.d * .13, building.h * .4],
+  ], facadeShade(building.color, 1.2), "rgba(255, 237, 197, .78)");
   for (const elevation of windowRows.slice(1).map((sill) => sill - building.h * .07)) {
     const band = [
       projectWorldPoint(building.x, building.y + building.d, elevation),
@@ -2074,8 +2228,7 @@ function drawEmployerLogo(exhibit, x, y, size) {
   context.restore();
 }
 
-function drawExhibit(exhibit) {
-  const basePoint = exhibitWorldPoint(exhibit);
+function drawExhibit(exhibit, basePoint = exhibitWorldPoint(exhibit)) {
   if (!basePoint) return;
   const base = projectWorldPoint(basePoint.x, basePoint.y);
   if (!base || base.x < -250 || base.x > game.width + 250) return;
