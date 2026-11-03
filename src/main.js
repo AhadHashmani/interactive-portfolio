@@ -1387,17 +1387,8 @@ function drawStreetLight(light) {
 }
 
 function drawBuilding(building) {
-  const footprint = [
-    [building.x, building.y],
-    [building.x + building.w, building.y],
-    [building.x + building.w, building.y + building.d],
-    [building.x, building.y + building.d],
-  ];
-  const corners = footprint.map(([x, y]) => projectWorldPoint(x, y));
-  if (corners.some((point) => !point || point.x < -170 || point.x > game.width + 170)) return;
-  const roof = footprint.map(([x, y]) => projectWorldPoint(x, y, building.h));
-  if (roof.some((point) => !point)) return;
   const drawPolygon = (points, fill, stroke = null, lineWidth = 1) => {
+    if (points.length < 3) return;
     context.beginPath();
     points.forEach((point, index) => {
       if (index === 0) context.moveTo(point.x, point.y);
@@ -1412,19 +1403,78 @@ function drawBuilding(building) {
       context.stroke();
     }
   };
+  const projectBuildingPolygon = (vertices) => {
+    let clipped = vertices.map(([x, y, z]) => ({ x, y, z }));
+    for (const [boundary, keep] of [
+      [8.1, (depth) => depth >= 8.1],
+      [RENDER_DISTANCE - 0.1, (depth) => depth <= RENDER_DISTANCE - 0.1],
+    ]) {
+      const output = [];
+      clipped.forEach((point, index) => {
+        const previous = clipped[(index + clipped.length - 1) % clipped.length];
+        const pointDepth = projectedDepth(point.x, point.y);
+        const previousDepth = projectedDepth(previous.x, previous.y);
+        const pointInside = keep(pointDepth);
+        const previousInside = keep(previousDepth);
+        if (pointInside !== previousInside) {
+          const ratio = (boundary - previousDepth) / (pointDepth - previousDepth);
+          output.push({
+            x: lerp(previous.x, point.x, ratio),
+            y: lerp(previous.y, point.y, ratio),
+            z: lerp(previous.z, point.z, ratio),
+          });
+        }
+        if (pointInside) output.push(point);
+      });
+      clipped = output;
+      if (clipped.length < 3) return [];
+    }
+    return clipped.map(({ x, y, z }) => projectWorldPoint(x, y, z)).filter(Boolean);
+  };
+  const projectBuildingLine = (start, end) => {
+    let clippedStart = { x: start[0], y: start[1], z: start[2] };
+    let clippedEnd = { x: end[0], y: end[1], z: end[2] };
+    let startDepth = projectedDepth(clippedStart.x, clippedStart.y);
+    let endDepth = projectedDepth(clippedEnd.x, clippedEnd.y);
+    const nearDepth = 8.1;
+    const farDepth = RENDER_DISTANCE - 0.1;
+    if (startDepth < nearDepth && endDepth < nearDepth) return [];
+    if (startDepth > farDepth && endDepth > farDepth) return [];
+    if (startDepth < nearDepth || startDepth > farDepth) {
+      const boundary = startDepth < nearDepth ? nearDepth : farDepth;
+      const ratio = (boundary - startDepth) / (endDepth - startDepth);
+      clippedStart = {
+        x: lerp(clippedStart.x, clippedEnd.x, ratio),
+        y: lerp(clippedStart.y, clippedEnd.y, ratio),
+        z: lerp(clippedStart.z, clippedEnd.z, ratio),
+      };
+      startDepth = boundary;
+    }
+    if (endDepth < nearDepth || endDepth > farDepth) {
+      const boundary = endDepth < nearDepth ? nearDepth : farDepth;
+      const ratio = (boundary - startDepth) / (endDepth - startDepth);
+      clippedEnd = {
+        x: lerp(clippedStart.x, clippedEnd.x, ratio),
+        y: lerp(clippedStart.y, clippedEnd.y, ratio),
+        z: lerp(clippedStart.z, clippedEnd.z, ratio),
+      };
+    }
+    return [
+      projectWorldPoint(clippedStart.x, clippedStart.y, clippedStart.z),
+      projectWorldPoint(clippedEnd.x, clippedEnd.y, clippedEnd.z),
+    ].filter(Boolean);
+  };
   const facadeShade = (color, amount) => {
     const value = Number.parseInt(color.slice(1), 16);
     const channels = [16, 8, 0].map((shift) => Math.max(0, Math.min(255, ((value >> shift) & 255) * amount)));
     return `rgb(${channels.map(Math.round).join(",")})`;
   };
   const projectWall = (points, color, stroke = null) => {
-    const projected = points.map(([x, y, z]) => projectWorldPoint(x, y, z));
-    if (projected.some((point) => !point)) return;
-    drawPolygon(projected, color, stroke);
+    drawPolygon(projectBuildingPolygon(points), color, stroke);
   };
 
   context.save();
-  context.globalAlpha = clamp((RENDER_DISTANCE - corners[0].depth) / (RENDER_DISTANCE * .24), .2, 1);
+  context.globalAlpha = 1;
   const shadow = projectEllipse(
     building.x + building.w * .58 + building.h * .13,
     building.y + building.d * .58 + building.h * .1,
@@ -1440,15 +1490,39 @@ function drawBuilding(building) {
     context.fill();
   }
 
-  drawPolygon([corners[3], corners[2], roof[2], roof[3]], facadeShade(building.color, .57));
-  drawPolygon([corners[0], corners[3], roof[3], roof[0]], facadeShade(building.color, .76));
-  drawPolygon([roof[0], roof[1], roof[2], roof[3]], facadeShade(building.color, 1.08), "rgba(255, 246, 230, .45)");
+  const frontY = projection.cameraY >= building.y + building.d / 2
+    ? building.y + building.d
+    : building.y;
+  const sideX = projection.cameraX >= building.x + building.w / 2
+    ? building.x + building.w
+    : building.x;
+  const frontFace = [
+    [building.x, frontY, 0],
+    [building.x + building.w, frontY, 0],
+    [building.x + building.w, frontY, building.h],
+    [building.x, frontY, building.h],
+  ];
+  const sideFace = [
+    [sideX, building.y, 0],
+    [sideX, building.y + building.d, 0],
+    [sideX, building.y + building.d, building.h],
+    [sideX, building.y, building.h],
+  ];
+  const roofFace = [
+    [building.x, building.y, building.h],
+    [building.x + building.w, building.y, building.h],
+    [building.x + building.w, building.y + building.d, building.h],
+    [building.x, building.y + building.d, building.h],
+  ];
+  projectWall(sideFace, facadeShade(building.color, .57));
+  projectWall(frontFace, facadeShade(building.color, .76));
+  projectWall(roofFace, facadeShade(building.color, 1.08), "rgba(255, 246, 230, .45)");
 
   projectWall([
-    [building.x, building.y + building.d, 2],
-    [building.x + building.w, building.y + building.d, 2],
-    [building.x + building.w, building.y + building.d, building.h * .07],
-    [building.x, building.y + building.d, building.h * .07],
+    [building.x, frontY, 2],
+    [building.x + building.w, frontY, 2],
+    [building.x + building.w, frontY, building.h * .07],
+    [building.x, frontY, building.h * .07],
   ], facadeShade(building.color, .7), "rgba(241, 225, 199, .3)");
 
   const windowRows = building.h > 78 ? [building.h * .27, building.h * .59] : [building.h * .42];
@@ -1458,29 +1532,30 @@ function drawBuilding(building) {
     for (const sill of windowRows) {
       const halfWindow = building.w / (frontColumns * 7.5);
       const glazing = [
-        [centerX - halfWindow, building.y + building.d, sill],
-        [centerX + halfWindow, building.y + building.d, sill],
-        [centerX + halfWindow, building.y + building.d, sill + building.h * .2],
-        [centerX - halfWindow, building.y + building.d, sill + building.h * .2],
+        [centerX - halfWindow, frontY, sill],
+        [centerX + halfWindow, frontY, sill],
+        [centerX + halfWindow, frontY, sill + building.h * .2],
+        [centerX - halfWindow, frontY, sill + building.h * .2],
       ];
       projectWall(glazing, "#34505b", "rgba(238, 222, 194, .68)");
       projectWall([
-        [centerX - halfWindow * .66, building.y + building.d, sill + building.h * .025],
-        [centerX - halfWindow * .32, building.y + building.d, sill + building.h * .025],
-        [centerX - halfWindow * .32, building.y + building.d, sill + building.h * .17],
-        [centerX - halfWindow * .66, building.y + building.d, sill + building.h * .17],
+        [centerX - halfWindow * .66, frontY, sill + building.h * .025],
+        [centerX - halfWindow * .32, frontY, sill + building.h * .025],
+        [centerX - halfWindow * .32, frontY, sill + building.h * .17],
+        [centerX - halfWindow * .66, frontY, sill + building.h * .17],
       ], "rgba(211, 227, 222, .58)");
     }
   }
-  for (let column = 0; column < 2; column += 1) {
-    const centerY = building.y + building.d * ((column + 1) / 3);
+  const sideColumns = 2;
+  for (let column = 0; column < sideColumns; column += 1) {
+    const centerY = building.y + building.d * ((column + 1) / (sideColumns + 1));
     for (const sill of windowRows) {
       const halfWindow = building.d / 8;
       projectWall([
-        [building.x + building.w, centerY - halfWindow, sill],
-        [building.x + building.w, centerY + halfWindow, sill],
-        [building.x + building.w, centerY + halfWindow, sill + building.h * .2],
-        [building.x + building.w, centerY - halfWindow, sill + building.h * .2],
+        [sideX, centerY - halfWindow, sill],
+        [sideX, centerY + halfWindow, sill],
+        [sideX, centerY + halfWindow, sill + building.h * .2],
+        [sideX, centerY - halfWindow, sill + building.h * .2],
       ], "#2f4852", "rgba(238, 222, 194, .55)");
     }
   }
@@ -1489,39 +1564,39 @@ function drawBuilding(building) {
     const columnX = building.x + building.w * fraction;
     const columnWidth = building.w * .025;
     projectWall([
-      [columnX - columnWidth / 2, building.y + building.d, building.h * .08],
-      [columnX + columnWidth / 2, building.y + building.d, building.h * .08],
-      [columnX + columnWidth / 2, building.y + building.d, building.h * .9],
-      [columnX - columnWidth / 2, building.y + building.d, building.h * .9],
+      [columnX - columnWidth / 2, frontY, building.h * .08],
+      [columnX + columnWidth / 2, frontY, building.h * .08],
+      [columnX + columnWidth / 2, frontY, building.h * .9],
+      [columnX - columnWidth / 2, frontY, building.h * .9],
     ], "rgba(244, 224, 187, .26)");
   }
 
   const doorWidth = building.w * .15;
   const doorCenterX = building.x + building.w * .5;
   projectWall([
-    [doorCenterX - doorWidth / 2, building.y + building.d, 0],
-    [doorCenterX + doorWidth / 2, building.y + building.d, 0],
-    [doorCenterX + doorWidth / 2, building.y + building.d, building.h * .36],
-    [doorCenterX - doorWidth / 2, building.y + building.d, building.h * .36],
+    [doorCenterX - doorWidth / 2, frontY, 0],
+    [doorCenterX + doorWidth / 2, frontY, 0],
+    [doorCenterX + doorWidth / 2, frontY, building.h * .36],
+    [doorCenterX - doorWidth / 2, frontY, building.h * .36],
   ], "#51463c", "rgba(239, 218, 183, .6)");
   projectWall([
-    [doorCenterX - doorWidth * .85, building.y + building.d, building.h * .4],
-    [doorCenterX + doorWidth * .85, building.y + building.d, building.h * .4],
-    [doorCenterX + doorWidth * .85, building.y + building.d + building.d * .12, building.h * .4],
-    [doorCenterX - doorWidth * .85, building.y + building.d + building.d * .12, building.h * .4],
+    [doorCenterX - doorWidth * .85, frontY, building.h * .4],
+    [doorCenterX + doorWidth * .85, frontY, building.h * .4],
+    [doorCenterX + doorWidth * .85, frontY + (frontY === building.y + building.d ? building.d : -building.d) * .12, building.h * .4],
+    [doorCenterX - doorWidth * .85, frontY + (frontY === building.y + building.d ? building.d : -building.d) * .12, building.h * .4],
   ], facadeShade(building.color, .8), "rgba(247, 235, 211, .64)");
   projectWall([
-    [doorCenterX - doorWidth * .8, building.y + building.d, building.h * .4],
-    [doorCenterX + doorWidth * .8, building.y + building.d, building.h * .4],
-    [doorCenterX + doorWidth * .8, building.y + building.d + building.d * .13, building.h * .4],
-    [doorCenterX - doorWidth * .8, building.y + building.d + building.d * .13, building.h * .4],
+    [doorCenterX - doorWidth * .8, frontY, building.h * .4],
+    [doorCenterX + doorWidth * .8, frontY, building.h * .4],
+    [doorCenterX + doorWidth * .8, frontY + (frontY === building.y + building.d ? building.d : -building.d) * .13, building.h * .4],
+    [doorCenterX - doorWidth * .8, frontY + (frontY === building.y + building.d ? building.d : -building.d) * .13, building.h * .4],
   ], facadeShade(building.color, 1.2), "rgba(255, 237, 197, .78)");
   for (const elevation of windowRows.slice(1).map((sill) => sill - building.h * .07)) {
-    const band = [
-      projectWorldPoint(building.x, building.y + building.d, elevation),
-      projectWorldPoint(building.x + building.w, building.y + building.d, elevation),
-    ];
-    if (band.every(Boolean)) {
+    const band = projectBuildingLine(
+      [building.x, frontY, elevation],
+      [building.x + building.w, frontY, elevation],
+    );
+    if (band.length === 2) {
       context.strokeStyle = "rgba(241, 225, 199, .44)";
       context.lineWidth = Math.max(1, band[0].scale * 2.2);
       context.beginPath();
@@ -1531,11 +1606,12 @@ function drawBuilding(building) {
     }
   }
 
-  const parapet = footprint.map(([x, y]) => projectWorldPoint(x, y, building.h + 5));
-  if (parapet.every(Boolean)) {
-    drawPolygon([roof[3], roof[2], parapet[2], parapet[3]], facadeShade(building.color, .82));
-    drawPolygon([roof[0], roof[1], parapet[1], parapet[0]], facadeShade(building.color, 1.15));
-  }
+  projectWall([
+    [building.x, frontY, building.h],
+    [building.x + building.w, frontY, building.h],
+    [building.x + building.w, frontY, building.h + 5],
+    [building.x, frontY, building.h + 5],
+  ], facadeShade(building.color, 1.15));
 
   const roofUnitX = building.x + building.w * .67;
   const roofUnitY = building.y + building.d * .34;
@@ -1546,15 +1622,18 @@ function drawBuilding(building) {
     [roofUnitX, roofUnitY + building.d * .13, building.h],
   ], "#817e76", "rgba(255, 247, 230, .42)");
 
-  const roofCenter = roof.reduce((center, point) => ({
-    x: center.x + point.x / roof.length,
-    y: center.y + point.y / roof.length,
-  }), { x: 0, y: 0 });
-  context.fillStyle = "rgba(43, 48, 48, .82)";
-  context.font = `600 ${clamp(8 * corners[0].scale, 5, 9)}px 'DM Mono', monospace`;
-  context.textAlign = "center";
-  context.textBaseline = "middle";
-  context.fillText(building.label, roofCenter.x, roofCenter.y, Math.hypot(roof[1].x - roof[0].x, roof[1].y - roof[0].y) * .8);
+  const roofCenter = projectWorldPoint(
+    building.x + building.w / 2,
+    building.y + building.d / 2,
+    building.h,
+  );
+  if (roofCenter && roofCenter.x > -170 && roofCenter.x < game.width + 170) {
+    context.fillStyle = "rgba(43, 48, 48, .92)";
+    context.font = `600 ${clamp(8 * roofCenter.scale, 5, 9)}px 'DM Mono', monospace`;
+    context.textAlign = "center";
+    context.textBaseline = "middle";
+    context.fillText(building.label, roofCenter.x, roofCenter.y);
+  }
   context.restore();
 }
 
