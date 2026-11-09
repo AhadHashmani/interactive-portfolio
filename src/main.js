@@ -186,6 +186,7 @@ const game = {
   effects: [],
   frameError: "",
   lastHudUpdate: 0,
+  stuckTimer: 0,
 };
 
 const projection = {
@@ -323,6 +324,35 @@ const SCENE_CHECKPOINTS = districts.map((district) => ({
   ...district,
   targetType: "checkpoint",
 }));
+const SCENE_WORLD_OBJECTS = [
+  ...SCENE_STRUCTURES,
+  ...SCENERY_TREES.map((tree) => ({
+    kind: "tree",
+    item: tree,
+    x: tree.x,
+    y: tree.y,
+    depth: 0,
+  })),
+  ...ROUTE_SIGNS.flatMap((sign) => {
+    const road = ROAD_SEGMENTS.find((segment) => segment.id === sign.roadId);
+    if (!road) return [];
+    const destination = districts.find((district) => district.id === road.id || road.id.startsWith(`${district.id}-`));
+    if (!destination) return [];
+    const point = roadPoint(road, sign.along, sign.side * DRIVE.roadWidth * 0.78);
+    return [{ kind: "route-sign", item: { sign, destination }, ...point, depth: 0 }];
+  }),
+  ...SCENE_EXHIBITS.map((entry) => ({
+    kind: "exhibit",
+    item: entry,
+    x: entry.position.x,
+    y: entry.position.y,
+    depth: 0,
+  })),
+  ...districts.flatMap((district) => [
+    { kind: "district-marker", item: district, x: district.x, y: district.y, depth: 0 },
+    { kind: "district-sign", item: district, x: district.signX, y: district.signY, depth: 0 },
+  ]),
+];
 
 function makeTagRow(values) {
   const row = element("div", "tag-row");
@@ -741,6 +771,7 @@ function resetCar() {
   game.car.boosting = false;
   game.boostCharge = 100;
   game.car.braking = false;
+  game.stuckTimer = 0;
   game.frameError = "";
   game.camera.x = game.car.x;
   game.camera.y = game.car.y;
@@ -819,17 +850,23 @@ function updateCar(dt) {
   const movementHeading = car.heading + car.driftAngle;
   const dx = Math.cos(movementHeading) * car.speed * dt;
   const dy = Math.sin(movementHeading) * car.speed * dt;
+  const previousX = car.x;
+  const previousY = car.y;
   const nextX = clamp(car.x + dx, 22, DRIVE.worldWidth - 22);
   const nextY = clamp(car.y + dy, 22, DRIVE.worldHeight - 22);
-  if (collidingBuildings(nextX, car.y)) {
-    car.speed *= 0.25;
+  const blockedX = nextX !== car.x && collidingBuildings(nextX, car.y);
+  if (!blockedX) car.x = nextX;
+  const blockedY = nextY !== car.y && collidingBuildings(car.x, nextY);
+  if (!blockedY) car.y = nextY;
+  if (blockedX || blockedY) car.speed *= blockedX && blockedY ? 0.72 : 0.9;
+
+  const requestedDistance = Math.hypot(dx, dy);
+  const traveledDistance = Math.hypot(car.x - previousX, car.y - previousY);
+  if (requestedDistance > 1 && traveledDistance < requestedDistance * 0.08) {
+    game.stuckTimer += dt;
+    if (game.stuckTimer >= 1.1) recoverCarToRoad();
   } else {
-    car.x = nextX;
-  }
-  if (collidingBuildings(car.x, nextY)) {
-    car.speed *= 0.25;
-  } else {
-    car.y = nextY;
+    game.stuckTimer = 0;
   }
 
   if (drifting && game.effects.length < 24 && Math.random() < dt * 30) {
@@ -854,15 +891,62 @@ function updateCar(dt) {
 function collidingBuildings(x, y) {
   const radius = 13 * WORLD_SCALE;
   for (const building of BUILDINGS) {
-    const hitX = x + radius > building.x && x - radius < building.x + building.w;
-    const hitY = y + radius > building.y && y - radius < building.y + building.d;
-    if (hitX && hitY) return true;
+    const closestX = clamp(x, building.x, building.x + building.w);
+    const closestY = clamp(y, building.y, building.y + building.d);
+    if (Math.hypot(x - closestX, y - closestY) < radius) return true;
   }
-  const stadiumHitX = x + radius > STADIUM.x && x - radius < STADIUM.x + STADIUM.w;
-  const stadiumHitY = y + radius > STADIUM.y && y - radius < STADIUM.y + STADIUM.d;
-  if (stadiumHitX && stadiumHitY) return true;
+  const stadiumX = clamp(x, STADIUM.x, STADIUM.x + STADIUM.w);
+  const stadiumY = clamp(y, STADIUM.y, STADIUM.y + STADIUM.d);
+  if (Math.hypot(x - stadiumX, y - stadiumY) < radius) return true;
   if (Math.hypot(x - FOUNTAIN.x, y - FOUNTAIN.y) < FOUNTAIN.radius + radius) return true;
   return false;
+}
+
+function recoverCarToRoad() {
+  const car = game.car;
+  const radius = DRIVE.roadWidth * 0.42;
+  let closestPoint = null;
+  let closestDistance = Infinity;
+  for (const road of ROAD_SEGMENTS) {
+    const dx = road.x2 - road.x1;
+    const dy = road.y2 - road.y1;
+    const lengthSquared = dx * dx + dy * dy;
+    const along = lengthSquared
+      ? clamp(((car.x - road.x1) * dx + (car.y - road.y1) * dy) / lengthSquared, 0, 1)
+      : 0;
+    const centerX = road.x1 + dx * along;
+    const centerY = road.y1 + dy * along;
+    const roadLength = Math.sqrt(lengthSquared);
+    const normalX = roadLength ? -dy / roadLength : 0;
+    const normalY = roadLength ? dx / roadLength : 0;
+    for (const alongOffset of [-.8, -.4, 0, .4, .8]) {
+      const sampleAlong = lengthSquared
+        ? clamp(along + alongOffset * DRIVE.roadWidth / roadLength, 0, 1)
+        : 0;
+      for (const offset of [-radius, 0, radius]) {
+        const x = road.x1 + dx * sampleAlong + normalX * offset;
+        const y = road.y1 + dy * sampleAlong + normalY * offset;
+        const distanceFromCar = Math.hypot(x - car.x, y - car.y);
+        if (distanceFromCar >= closestDistance || distanceFromCar > DRIVE.roadWidth * 2.2
+          || collidingBuildings(x, y)) continue;
+        closestPoint = { x, y };
+        closestDistance = distanceFromCar;
+      }
+    }
+  }
+  if (!closestPoint) {
+    game.stuckTimer = 0;
+    return;
+  }
+  car.x = closestPoint.x;
+  car.y = closestPoint.y;
+  car.speed = 0;
+  game.stuckTimer = 0;
+  game.camera.x = car.x;
+  game.camera.y = car.y;
+  game.previousCamera.x = car.x;
+  game.previousCamera.y = car.y;
+  announce("Car freed from an obstruction and returned to the nearest clear road.");
 }
 
 function distanceToSegment(x, y, segment) {
@@ -1018,11 +1102,87 @@ function resizeCanvas() {
   render();
 }
 
+function createCarGeometry() {
+  const vertices = [];
+  const faces = [
+    { corners: [0, 3, 2, 1], normal: [0, 0, -1] },
+    { corners: [4, 5, 6, 7], normal: [0, 0, 1] },
+    { corners: [0, 1, 5, 4], normal: [0, -1, 0] },
+    { corners: [1, 2, 6, 5], normal: [1, 0, 0] },
+    { corners: [2, 3, 7, 6], normal: [0, 1, 0] },
+    { corners: [3, 0, 4, 7], normal: [-1, 0, 0] },
+  ];
+  const addBox = (center, size, color) => {
+    const [x, y, z] = center;
+    const [width, length, height] = size;
+    const x0 = x - width / 2;
+    const x1 = x + width / 2;
+    const y0 = y - length / 2;
+    const y1 = y + length / 2;
+    const z0 = z - height / 2;
+    const z1 = z + height / 2;
+    const corners = [
+      [x0, y0, z0], [x1, y0, z0], [x1, y1, z0], [x0, y1, z0],
+      [x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1],
+    ];
+    for (const { corners: indices, normal } of faces) {
+      const points = [indices[0], indices[1], indices[2], indices[0], indices[2], indices[3]];
+      for (const index of points) vertices.push(...corners[index], ...normal, ...color);
+    }
+  };
+  const addPrism = (outline, bottom, top, color) => {
+    const center = outline.reduce((point, vertex) => [point[0] + vertex[0] / outline.length, point[1] + vertex[1] / outline.length], [0, 0]);
+    for (let index = 0; index < outline.length; index += 1) {
+      const current = outline[index];
+      const next = outline[(index + 1) % outline.length];
+      const sideX = (current[0] + next[0]) / 2 - center[0];
+      const sideY = (current[1] + next[1]) / 2 - center[1];
+      const sideLength = Math.hypot(sideX, sideY) || 1;
+      const normal = [sideX / sideLength, sideY / sideLength, 0];
+      const lowCurrent = [current[0], current[1], bottom];
+      const lowNext = [next[0], next[1], bottom];
+      const highNext = [next[0], next[1], top];
+      const highCurrent = [current[0], current[1], top];
+      for (const point of [lowCurrent, lowNext, highNext, lowCurrent, highNext, highCurrent]) {
+        vertices.push(...point, ...normal, ...color);
+      }
+      const centerPoint = [center[0], center[1], top];
+      for (const point of [centerPoint, highCurrent, highNext]) vertices.push(...point, 0, 0, 1, ...color);
+    }
+  };
+
+  addBox([0, 0, .13], [.9, 1.76, .2], [.035, .047, .058]);
+  for (const side of [-1, 1]) {
+    for (const end of [-1, 1]) {
+      addBox([side * .43, end * .54, .14], [.2, .34, .23], [.018, .023, .028]);
+      addBox([side * .43, end * .54, .14], [.075, .2, .235], [.43, .49, .5]);
+    }
+  }
+  addPrism([
+    [-.24, -.94], [.24, -.94], [.36, -.77], [.43, -.35], [.41, .61],
+    [.33, .88], [-.33, .88], [-.41, .61], [-.43, -.35], [-.36, -.77],
+  ], .19, .39, [.23, .29, .33]);
+  addBox([0, -.54, .415], [.59, .58, .045], [.38, .45, .48]);
+  addBox([0, .62, .405], [.61, .38, .045], [.29, .36, .4]);
+  addBox([0, -.03, .43], [.59, .83, .25], [.14, .21, .26]);
+  addBox([0, -.22, .565], [.49, .39, .025], [.065, .17, .21]);
+  addBox([0, .26, .565], [.47, .24, .025], [.06, .13, .17]);
+  for (const side of [-1, 1]) {
+    addBox([side * .14, .56, .447], [.045, .43, .018], [.78, .61, .34]);
+    addBox([side * .49, -.34, .39], [.17, .14, .11], [.16, .23, .28]);
+    addBox([side * .27, .87, .31], [.19, .035, .07], [.92, .16, .11]);
+    addBox([side * .23, -.87, .31], [.15, .035, .065], [.95, .74, .44]);
+  }
+  addBox([0, .87, .43], [1.02, .075, .08], [.35, .43, .47]);
+  addBox([0, .82, .37], [.88, .055, .055], [.055, .07, .08]);
+  return new Float32Array(vertices);
+}
+
 function createAtmosphereRenderer(target) {
   const gl = target?.getContext("webgl", {
     alpha: true,
     antialias: false,
-    depth: false,
+    depth: true,
     stencil: false,
     powerPreference: "low-power",
   });
@@ -1054,14 +1214,16 @@ function createAtmosphereRenderer(target) {
     uniform float u_time;
     varying vec2 v_uv;
     void main() {
-      float wave = 0.38 + 0.11 * sin(v_uv.x * 4.2 + u_time * 0.18);
-      float glow = 1.0 - smoothstep(0.015, 0.2, abs(v_uv.y - wave));
-      float sweep = 0.5 + 0.5 * sin(v_uv.x * 5.0 - u_time * 0.28);
+      float wave = 0.36 + 0.1 * sin(v_uv.x * 4.2 + u_time * 0.14);
+      float glow = 1.0 - smoothstep(0.01, 0.16, abs(v_uv.y - wave));
+      float sweep = 0.5 + 0.5 * sin(v_uv.x * 5.0 - u_time * 0.2);
+      float contours = sin((v_uv.y * 19.0 + sin(v_uv.x * 7.0 + u_time * 0.08) * 0.22) * 6.283);
+      float contourGlow = (1.0 - smoothstep(0.94, 1.0, abs(contours))) * smoothstep(0.15, 0.72, v_uv.y);
       vec3 cool = vec3(0.22, 0.64, 0.61);
       vec3 warm = vec3(0.92, 0.67, 0.42);
       vec3 tint = mix(cool, warm, smoothstep(0.58, 0.96, v_uv.x));
-      float alpha = 0.003 + glow * (0.01 + sweep * 0.015);
-      gl_FragColor = vec4(tint, min(alpha, 0.028));
+      float alpha = 0.002 + glow * (0.007 + sweep * 0.009) + contourGlow * 0.003;
+      gl_FragColor = vec4(tint * alpha, alpha);
     }
   `);
 
@@ -1109,11 +1271,130 @@ function createAtmosphereRenderer(target) {
   gl.disable(gl.BLEND);
   gl.disable(gl.DEPTH_TEST);
 
+  const carVertexShader = compileShader(gl.VERTEX_SHADER, `
+    precision mediump float;
+    attribute vec3 a_position;
+    attribute vec3 a_normal;
+    attribute vec3 a_color;
+    uniform vec2 u_resolution;
+    uniform float u_size;
+    uniform float u_turn;
+    uniform float u_drift;
+    uniform float u_speed;
+    uniform float u_time;
+    varying vec3 v_color;
+    varying vec3 v_normal;
+    varying vec3 v_view;
+    void main() {
+      float angle = u_turn * 0.075 + u_drift * 0.24;
+      float c = cos(angle);
+      float s = sin(angle);
+      vec2 rotated = vec2(
+        a_position.x * c - a_position.y * s,
+        a_position.x * s + a_position.y * c
+      );
+      float bounce = sin(u_time * 9.0) * min(u_speed, 1.0) * 0.006;
+      float screenY = rotated.y * 0.9 - a_position.z * 0.48 + bounce;
+      float centerY = 1.0 - 2.0 * 0.82;
+      float clipX = rotated.x * u_size * 2.0 / u_resolution.x;
+      float clipY = centerY - screenY * u_size * 2.0 / u_resolution.y;
+      float depth = 0.52 - a_position.z * 0.65 - rotated.y * 0.018;
+      gl_Position = vec4(clipX, clipY, depth, 1.0);
+      v_color = a_color;
+      v_normal = normalize(vec3(a_normal.x * c - a_normal.y * s, a_normal.x * s + a_normal.y * c, a_normal.z));
+      v_view = normalize(vec3(-rotated.x * 0.24, -rotated.y * 0.18, 1.0));
+    }
+  `);
+  const carFragmentShader = compileShader(gl.FRAGMENT_SHADER, `
+    precision mediump float;
+    uniform float u_boost;
+    uniform float u_time;
+    varying vec3 v_color;
+    varying vec3 v_normal;
+    varying vec3 v_view;
+    void main() {
+      vec3 n = normalize(v_normal);
+      vec3 light = normalize(vec3(-0.42, -0.5, 0.82));
+      float diffuse = max(dot(n, light), 0.0);
+      float specular = pow(max(dot(reflect(-light, n), normalize(v_view)), 0.0), 22.0);
+      float rim = pow(1.0 - max(dot(n, normalize(v_view)), 0.0), 2.0);
+      vec3 color = v_color * (0.46 + diffuse * 0.72) + vec3(0.52, 0.64, 0.7) * specular * 0.38;
+      color += vec3(0.045, 0.13, 0.15) * rim;
+      if (v_color.r > 0.7 && v_color.g < 0.25) {
+        color += vec3(0.28, 0.025, 0.01) * (0.6 + 0.4 * sin(u_time * 17.0));
+      }
+      if (v_color.r > 0.8 && v_color.g > 0.6) {
+        color += vec3(0.12, 0.07, 0.025) * u_boost;
+      }
+      gl_FragColor = vec4(color, 1.0);
+    }
+  `);
+  let carProgram = null;
+  let carBuffer = null;
+  let carAttributes = null;
+  if (carVertexShader && carFragmentShader) {
+    carProgram = gl.createProgram();
+    if (carProgram) {
+      gl.attachShader(carProgram, carVertexShader);
+      gl.attachShader(carProgram, carFragmentShader);
+      gl.linkProgram(carProgram);
+      if (!gl.getProgramParameter(carProgram, gl.LINK_STATUS)) {
+        console.error("Portfolio Drive car shader failed to link.", gl.getProgramInfoLog(carProgram));
+        gl.deleteProgram(carProgram);
+        carProgram = null;
+      }
+    } else {
+      console.error("Portfolio Drive car shader could not create a WebGL program.");
+    }
+    gl.deleteShader(carVertexShader);
+    gl.deleteShader(carFragmentShader);
+  } else {
+    if (carVertexShader) gl.deleteShader(carVertexShader);
+    if (carFragmentShader) gl.deleteShader(carFragmentShader);
+  }
+  if (carProgram) {
+    carBuffer = gl.createBuffer();
+    if (carBuffer) {
+      const carGeometry = createCarGeometry();
+      gl.bindBuffer(gl.ARRAY_BUFFER, carBuffer);
+      gl.bufferData(gl.ARRAY_BUFFER, carGeometry, gl.STATIC_DRAW);
+      carAttributes = {
+        position: gl.getAttribLocation(carProgram, "a_position"),
+        normal: gl.getAttribLocation(carProgram, "a_normal"),
+        color: gl.getAttribLocation(carProgram, "a_color"),
+        resolution: gl.getUniformLocation(carProgram, "u_resolution"),
+        size: gl.getUniformLocation(carProgram, "u_size"),
+        turn: gl.getUniformLocation(carProgram, "u_turn"),
+        drift: gl.getUniformLocation(carProgram, "u_drift"),
+        speed: gl.getUniformLocation(carProgram, "u_speed"),
+        time: gl.getUniformLocation(carProgram, "u_time"),
+        boost: gl.getUniformLocation(carProgram, "u_boost"),
+        vertexCount: carGeometry.length / 9,
+      };
+      if ([carAttributes.position, carAttributes.normal, carAttributes.color].some((location) => location < 0)) {
+        console.error("Portfolio Drive car shader attributes are unavailable.");
+        gl.deleteBuffer(carBuffer);
+        gl.deleteProgram(carProgram);
+        carBuffer = null;
+        carProgram = null;
+        carAttributes = null;
+      }
+    } else {
+      console.error("Portfolio Drive car shader could not initialize its vertex buffer.");
+      gl.deleteProgram(carProgram);
+      carProgram = null;
+    }
+  }
+
   return {
     gl,
     program,
     positionLocation,
+    positionBuffer,
     timeLocation: gl.getUniformLocation(program, "u_time"),
+    carProgram,
+    carBuffer,
+    carAttributes,
     lastRenderedAt: -Infinity,
   };
 }
@@ -1130,17 +1411,51 @@ function resizeAtmosphereRenderer() {
 }
 
 function drawAtmosphere(timestamp) {
-  if (!atmosphereRenderer || reducedMotion.matches || driveView.classList.contains("shader-fallback")
-    || timestamp - atmosphereRenderer.lastRenderedAt < 80) return;
+  if (!atmosphereRenderer || driveView.classList.contains("shader-fallback")) return;
   if (atmosphereRenderer.gl.isContextLost()) {
     driveView.classList.add("shader-fallback");
     return;
   }
   atmosphereRenderer.lastRenderedAt = timestamp;
-  const { gl, program, timeLocation } = atmosphereRenderer;
+  const { gl, program, positionLocation, positionBuffer, timeLocation } = atmosphereRenderer;
+  gl.viewport(0, 0, atmosphereCanvas.width, atmosphereCanvas.height);
+  gl.clearColor(0, 0, 0, 0);
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  gl.disable(gl.BLEND);
+  gl.disable(gl.DEPTH_TEST);
   gl.useProgram(program);
-  gl.uniform1f(timeLocation, timestamp * 0.001);
+  gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+  gl.enableVertexAttribArray(positionLocation);
+  gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+  gl.uniform1f(timeLocation, reducedMotion.matches ? 0 : timestamp * 0.001);
   gl.drawArrays(gl.TRIANGLES, 0, 6);
+  if (!atmosphereRenderer.carProgram || !atmosphereRenderer.carBuffer || !atmosphereRenderer.carAttributes) return;
+
+  const { carProgram, carBuffer, carAttributes } = atmosphereRenderer;
+  const size = clamp(game.width * .075, 48, 92);
+  gl.useProgram(carProgram);
+  gl.bindBuffer(gl.ARRAY_BUFFER, carBuffer);
+  gl.enableVertexAttribArray(carAttributes.position);
+  gl.enableVertexAttribArray(carAttributes.normal);
+  gl.enableVertexAttribArray(carAttributes.color);
+  gl.vertexAttribPointer(carAttributes.position, 3, gl.FLOAT, false, 36, 0);
+  gl.vertexAttribPointer(carAttributes.normal, 3, gl.FLOAT, false, 36, 12);
+  gl.vertexAttribPointer(carAttributes.color, 3, gl.FLOAT, false, 36, 24);
+  gl.uniform2f(carAttributes.resolution, game.width, game.height);
+  gl.uniform1f(carAttributes.size, size * .96);
+  gl.uniform1f(carAttributes.turn, game.car.visualSteer);
+  gl.uniform1f(carAttributes.drift, game.car.driftAngle);
+  gl.uniform1f(carAttributes.speed, Math.min(Math.abs(game.car.speed) / DRIVE.maxForwardSpeed, 1));
+  gl.uniform1f(carAttributes.time, reducedMotion.matches ? 0 : timestamp * .001);
+  gl.uniform1f(carAttributes.boost, game.car.boosting ? 1 : 0);
+  gl.enable(gl.BLEND);
+  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+  gl.enable(gl.DEPTH_TEST);
+  gl.depthFunc(gl.LEQUAL);
+  gl.depthMask(true);
+  gl.drawArrays(gl.TRIANGLES, 0, carAttributes.vertexCount);
+  gl.disable(gl.DEPTH_TEST);
+  gl.disable(gl.BLEND);
 }
 
 function projectWorldPoint(x, y, elevation = 0) {
@@ -1186,24 +1501,21 @@ function drawWorld() {
   context.fillRect(0, game.height * DRIVE.horizon, game.width, game.height * (1 - DRIVE.horizon));
   drawDistantLandscape();
   drawRoads();
-  drawTrees();
-  for (const structure of SCENE_STRUCTURES) {
-    structure.depth = projectedDepth(structure.x, structure.y);
+  for (const object of SCENE_WORLD_OBJECTS) {
+    object.depth = projectedDepth(object.x, object.y);
   }
-  SCENE_STRUCTURES.sort(compareSceneDepth);
-  for (const structure of SCENE_STRUCTURES) {
-    if (structure.kind === "building") drawBuilding(structure.item);
-    else if (structure.kind === "stadium") drawStadiumPerspective();
-    else if (structure.kind === "fountain") drawFountainPerspective();
-    else drawStreetLight(structure.item);
+  SCENE_WORLD_OBJECTS.sort(compareSceneDepth);
+  for (const object of SCENE_WORLD_OBJECTS) {
+    if (object.kind === "building") drawBuilding(object.item);
+    else if (object.kind === "stadium") drawStadiumPerspective();
+    else if (object.kind === "fountain") drawFountainPerspective();
+    else if (object.kind === "streetlight") drawStreetLight(object.item);
+    else if (object.kind === "tree") drawTree(object.item);
+    else if (object.kind === "route-sign") drawRouteSign(object.item.sign, object.item.destination);
+    else if (object.kind === "exhibit") drawExhibit(object.item.exhibit, object.item.position);
+    else if (object.kind === "district-marker") drawDistrictMarker(object.item);
+    else if (object.kind === "district-sign") drawSign(object.item);
   }
-  drawRouteSigns();
-  for (const entry of SCENE_EXHIBITS) {
-    entry.depth = projectedDepth(entry.position.x, entry.position.y);
-  }
-  SCENE_EXHIBITS.sort(compareSceneDepth);
-  for (const { exhibit, position } of SCENE_EXHIBITS) drawExhibit(exhibit, position);
-  districts.forEach(drawDistrict);
   drawCheckpointBeacon(getNextCheckpoint());
   drawCarEffects();
   drawPlayerCar();
@@ -1453,10 +1765,6 @@ function drawRoadIntersections() {
     context.closePath();
     context.fill();
   }
-}
-
-function drawTrees() {
-  for (const tree of SCENERY_TREES) drawTree(tree);
 }
 
 function createTreeSprites() {
@@ -2154,62 +2462,114 @@ function drawSign(district) {
   const x = base.x;
   const y = base.y - postHeight;
   context.save();
-  context.fillStyle = "rgba(25, 37, 28, .2)";
-  context.fillRect(x - boardWidth * .47, base.y - 2, boardWidth * .94, Math.max(2, scale * 3));
-  context.fillStyle = "#4b4a39";
-  context.fillRect(x - boardWidth * .26, y + boardHeight * .72, Math.max(2, 3 * scale), postHeight * .32);
-  context.fillRect(x + boardWidth * .23, y + boardHeight * .72, Math.max(2, 3 * scale), postHeight * .32);
-  context.fillStyle = "#17241b";
+  context.fillStyle = "rgba(25, 37, 28, .28)";
+  context.beginPath();
+  context.ellipse(x, base.y, boardWidth * .54, Math.max(2, scale * 7), 0, 0, Math.PI * 2);
+  context.fill();
+  const postGradient = context.createLinearGradient(x - boardWidth * .28, 0, x + boardWidth * .28, 0);
+  postGradient.addColorStop(0, "#394039");
+  postGradient.addColorStop(.5, "#a39a7d");
+  postGradient.addColorStop(1, "#45483e");
+  context.fillStyle = postGradient;
+  for (const side of [-1, 1]) {
+    const postX = x + side * boardWidth * .25;
+    context.fillRect(postX, y + boardHeight * .66, Math.max(2, 3.5 * scale), postHeight * .36);
+    context.fillStyle = district.color;
+    context.fillRect(postX, y + boardHeight * .66, Math.max(1, scale), postHeight * .36);
+    context.fillStyle = postGradient;
+  }
+  context.fillStyle = "#10191a";
+  context.fillRect(x - boardWidth / 2 - scale * 2, y + scale * 2, boardWidth + scale * 4, boardHeight + scale * 3);
+  const boardGradient = context.createLinearGradient(x, y, x, y + boardHeight);
+  boardGradient.addColorStop(0, "#263634");
+  boardGradient.addColorStop(.52, "#142320");
+  boardGradient.addColorStop(1, "#101b1a");
+  context.fillStyle = boardGradient;
   context.fillRect(x - boardWidth / 2, y, boardWidth, boardHeight);
+  context.fillStyle = `${district.color}22`;
+  context.fillRect(x - boardWidth / 2 + scale * 2, y + scale * 2, boardWidth - scale * 4, Math.max(1, boardHeight * .09));
   context.strokeStyle = district.color;
   context.lineWidth = Math.max(1, scale * 1.5);
   context.strokeRect(x - boardWidth / 2, y, boardWidth, boardHeight);
+  context.strokeStyle = "rgba(237, 241, 220, .2)";
+  context.lineWidth = Math.max(.6, scale * .6);
+  context.strokeRect(x - boardWidth / 2 + scale * 3, y + scale * 3, boardWidth - scale * 6, boardHeight - scale * 6);
   context.fillStyle = district.color;
   context.textAlign = "center";
   context.textBaseline = "middle";
-  context.font = `500 ${clamp(10 * scale, 7, 13)}px 'DM Mono', monospace`;
-  context.fillText(`${district.number}  ${district.shortTitle.toUpperCase()}`, x, y + boardHeight * .43, boardWidth - 8);
+  const headingFont = clamp(10 * scale, 7, 13);
+  context.font = `600 ${headingFont}px 'DM Mono', monospace`;
+  context.fillText(`${district.number}  ${district.shortTitle.toUpperCase()}`, x, y + boardHeight * .4, boardWidth - 8);
   context.font = `400 ${clamp(7 * scale, 6, 9)}px 'DM Mono', monospace`;
   context.fillStyle = "#d5dece";
-  context.fillText("E  TO EXPLORE", x, y + boardHeight * .74, boardWidth - 8);
+  context.fillText("SLOW + E TO OPEN", x, y + boardHeight * .73, boardWidth - 8);
+  context.fillStyle = district.color;
+  const boltRadius = Math.max(.8, scale);
+  for (const side of [-1, 1]) {
+    context.beginPath();
+    context.arc(x + side * (boardWidth / 2 - scale * 5), y + boardHeight * .5, boltRadius, 0, Math.PI * 2);
+    context.fill();
+  }
   context.restore();
 }
 
-function drawRouteSigns() {
-  for (const sign of ROUTE_SIGNS) {
-    const segment = ROAD_SEGMENTS.find((road) => road.id === sign.roadId);
-    if (!segment) continue;
-    const destination = districts.find((district) => district.id === segment.id || segment.id.startsWith(`${district.id}-`));
-    if (!destination) continue;
-    const point = roadPoint(segment, sign.along, sign.side * (DRIVE.roadWidth * .78));
-    const base = projectWorldPoint(point.x, point.y);
-    if (!base || base.x < -180 || base.x > game.width + 180) continue;
-    const scale = clamp(base.scale, .4, 1.35);
-    const width = 178 * scale;
-    const height = 49 * scale;
-    const post = 76 * scale;
-    const x = base.x;
-    const y = base.y - post;
-    context.save();
-    context.fillStyle = "#464735";
-    context.fillRect(x - width * .36, y + height * .62, 4 * scale, post * .4);
-    context.fillRect(x + width * .31, y + height * .62, 4 * scale, post * .4);
-    context.fillStyle = "#1a271d";
-    context.fillRect(x - width / 2, y, width, height);
-    context.strokeStyle = destination.color;
-    context.lineWidth = Math.max(1, scale * 1.6);
-    context.strokeRect(x - width / 2, y, width, height);
-    context.textAlign = "center";
-    context.textBaseline = "middle";
-    context.fillStyle = destination.color;
-    context.font = `500 ${clamp(9 * scale, 7, 12)}px 'DM Mono', monospace`;
-    const arrow = segment.id === "projects" ? "←" : segment.id === "education" ? "↑" : segment.id === "skills" ? "↓" : "→";
-    context.fillText(`${destination.number}  ${destination.shortTitle.toUpperCase()} ${arrow}`, x, y + height * .38, width - 10);
-    context.fillStyle = "#f3f0df";
-    context.font = `400 ${clamp(7 * scale, 6, 9)}px 'DM Mono', monospace`;
-    context.fillText(segment.name, x, y + height * .72, width - 10);
-    context.restore();
+function drawRouteSign(sign, destination) {
+  const segment = ROAD_SEGMENTS.find((road) => road.id === sign.roadId);
+  if (!segment) return;
+  const point = roadPoint(segment, sign.along, sign.side * (DRIVE.roadWidth * .78));
+  const base = projectWorldPoint(point.x, point.y);
+  if (!base || base.x < -180 || base.x > game.width + 180) return;
+  const scale = clamp(base.scale, .4, 1.35);
+  const width = 178 * scale;
+  const height = 49 * scale;
+  const post = 76 * scale;
+  const x = base.x;
+  const y = base.y - post;
+  context.save();
+  context.fillStyle = "rgba(20, 32, 24, .26)";
+  context.beginPath();
+  context.ellipse(x, base.y, width * .48, Math.max(2, scale * 6), 0, 0, Math.PI * 2);
+  context.fill();
+  const postGradient = context.createLinearGradient(x - width * .34, 0, x + width * .34, 0);
+  postGradient.addColorStop(0, "#343a33");
+  postGradient.addColorStop(.5, "#968e71");
+  postGradient.addColorStop(1, "#41443a");
+  context.fillStyle = postGradient;
+  for (const side of [-1, 1]) {
+    context.fillRect(x + side * width * .34, y + height * .62, 4 * scale, post * .4);
   }
+  context.fillStyle = "#10191a";
+  context.fillRect(x - width / 2 - scale * 2, y + scale * 2, width + scale * 4, height + scale * 3);
+  const boardGradient = context.createLinearGradient(x, y, x, y + height);
+  boardGradient.addColorStop(0, "#263634");
+  boardGradient.addColorStop(.55, "#142320");
+  boardGradient.addColorStop(1, "#101b1a");
+  context.fillStyle = boardGradient;
+  context.fillRect(x - width / 2, y, width, height);
+  context.fillStyle = `${destination.color}24`;
+  context.fillRect(x - width / 2 + scale * 2, y + scale * 2, width - scale * 4, Math.max(1, height * .1));
+  context.strokeStyle = destination.color;
+  context.lineWidth = Math.max(1, scale * 1.6);
+  context.strokeRect(x - width / 2, y, width, height);
+  context.strokeStyle = "rgba(237, 241, 220, .22)";
+  context.lineWidth = Math.max(.6, scale * .6);
+  context.strokeRect(x - width / 2 + scale * 3, y + scale * 3, width - scale * 6, height - scale * 6);
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+  context.fillStyle = destination.color;
+  context.font = `500 ${clamp(9 * scale, 7, 12)}px 'DM Mono', monospace`;
+  const arrow = segment.id === "projects" ? "←" : segment.id === "education" ? "↑" : segment.id === "skills" ? "↓" : "→";
+  context.fillText(`${destination.number}  ${destination.shortTitle.toUpperCase()} ${arrow}`, x, y + height * .38, width - 10);
+  context.fillStyle = "#f3f0df";
+  context.font = `400 ${clamp(7 * scale, 6, 9)}px 'DM Mono', monospace`;
+  context.fillText(segment.name, x, y + height * .72, width - 10);
+  context.fillStyle = destination.color;
+  for (const side of [-1, 1]) {
+    context.beginPath();
+    context.arc(x + side * (width / 2 - scale * 5), y + height * .5, Math.max(.8, scale), 0, Math.PI * 2);
+    context.fill();
+  }
+  context.restore();
 }
 
 function drawBillboardArtwork(exhibit, x, y, width, height) {
@@ -2560,7 +2920,7 @@ function drawExhibit(exhibit, basePoint = exhibitWorldPoint(exhibit)) {
   }
 }
 
-function drawDistrict(district) {
+function drawDistrictMarker(district) {
   const point = projectWorldPoint(district.x, district.y);
   if (point && point.x > -50 && point.x < game.width + 50) {
     const radius = clamp(point.scale * 14, 3, 24);
@@ -2573,7 +2933,6 @@ function drawDistrict(district) {
     context.arc(point.x, point.y - radius, clamp(radius * .38, 2, 6), 0, Math.PI * 2);
     context.fill();
   }
-  drawSign(district);
 }
 
 function drawCheckpointBeacon(checkpoint) {
@@ -2680,7 +3039,49 @@ function drawBoostPlume(width, length) {
   context.restore();
 }
 
+function drawHeadlightBeams(width, length) {
+  const intensity = clamp(Math.abs(game.car.speed) / DRIVE.maxForwardSpeed, 0, 1);
+  if (intensity < 0.08) return;
+  context.save();
+  context.globalCompositeOperation = "screen";
+  context.globalAlpha = intensity * 0.2;
+  for (const side of [-1, 1]) {
+    const originX = side * width * 0.23;
+    const originY = -length * 0.43;
+    const endY = -length * (1.55 + intensity * 0.45);
+    const beam = context.createLinearGradient(originX, originY, originX, endY);
+    beam.addColorStop(0, "rgba(227, 242, 207, .62)");
+    beam.addColorStop(.38, "rgba(190, 228, 213, .22)");
+    beam.addColorStop(1, "rgba(135, 195, 190, 0)");
+    context.fillStyle = beam;
+    context.beginPath();
+    context.moveTo(originX - width * .08, originY);
+    context.lineTo(originX - width * (.27 + intensity * .12), endY);
+    context.quadraticCurveTo(originX, endY - length * .12, originX + width * (.27 + intensity * .12), endY);
+    context.lineTo(originX + width * .08, originY);
+    context.closePath();
+    context.fill();
+  }
+  context.restore();
+}
+
 function drawPlayerCar() {
+  if (atmosphereRenderer?.carProgram && !driveView.classList.contains("shader-fallback")) {
+    const width = clamp(game.width * .075, 48, 92);
+    const length = width * 1.86;
+    context.save();
+    context.translate(game.width / 2, game.height * .82);
+    context.rotate(-game.car.visualSteer * .045 + game.car.driftAngle * .18);
+    context.fillStyle = "rgba(18, 22, 27, .42)";
+    context.beginPath();
+    context.ellipse(4, length * .19, width * .78, length * .58, 0, 0, Math.PI * 2);
+    context.fill();
+    drawHeadlightBeams(width, length);
+    if (game.car.boosting) drawBoostPlume(width, length);
+    context.restore();
+    return;
+  }
+
   const width = clamp(game.width * .075, 48, 92);
   const length = width * 1.86;
   const x = game.width / 2;
@@ -2692,6 +3093,7 @@ function drawPlayerCar() {
   context.beginPath();
   context.ellipse(4, length * .19, width * .78, length * .58, 0, 0, Math.PI * 2);
   context.fill();
+  drawHeadlightBeams(width, length);
 
   if (game.car.boosting) drawBoostPlume(width, length);
 
