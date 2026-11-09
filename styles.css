@@ -52,9 +52,36 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--lime); outline-
 .view-switch:hover { border-color: var(--lime); background: rgba(194, 237, 136, .08); }
 .view-switch-icon { color: var(--lime); font-size: 15px; }
 
+body.drive-mode .topbar { background: linear-gradient(180deg, rgba(10, 14, 18, .78), rgba(10, 14, 18, .08)); border-bottom-color: transparent; backdrop-filter: none; }
+body.drive-mode .primary-nav { display: none; }
+body.drive-mode .wordmark-mark { border: 0; border-radius: 50%; background: #f0b900; color: #14171b; font-weight: 700; }
+body.drive-mode .view-switch { border-color: rgba(255,255,255,.2); border-radius: 999px; background: rgba(16, 20, 25, .48); backdrop-filter: blur(12px); }
+body.drive-mode .view-switch:hover { border-color: var(--lime); background: rgba(16, 20, 25, .72); }
+
 .drive-view { position: relative; height: 100svh; min-height: 620px; overflow: hidden; background: #b9ad99; isolation: isolate; }
 #worldCanvas { position: absolute; inset: 0; width: 100%; height: 100%; }
 .map-vignette { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, rgba(18, 27, 34, .24), transparent 53%), linear-gradient(0deg, rgba(18, 27, 34, .28), transparent 30%, rgba(18, 27, 34, .08)); }
+.scene-toolbar { position: absolute; z-index: 8; top: 91px; right: clamp(24px, 5vw, 76px); display: flex; align-items: center; gap: 8px; }
+.atmosphere-control, .scene-utility-controls { display: flex; align-items: center; gap: 3px; padding: 5px; border: 1px solid rgba(255,255,255,.19); border-radius: 999px; background: rgba(12, 16, 21, .64); box-shadow: 0 8px 26px rgba(8,12,16,.14); color: #f3f5f7; backdrop-filter: blur(14px); }
+.scene-control-label { padding: 0 8px 0 10px; color: rgba(235,240,244,.56); font: 8px var(--mono); letter-spacing: .11em; white-space: nowrap; }
+.atmosphere-control button { display: flex; align-items: center; gap: 6px; min-height: 30px; padding: 0 9px; border: 1px solid transparent; border-radius: 999px; background: transparent; color: rgba(237,241,245,.72); font: 8px var(--mono); letter-spacing: .05em; cursor: pointer; transition: background .2s, color .2s, border-color .2s; }
+.atmosphere-control button:hover { color: #fff; background: rgba(255,255,255,.09); }
+.atmosphere-control button[aria-pressed="true"] { border-color: rgba(255,255,255,.16); background: rgba(255,255,255,.13); color: #fff; }
+.atmosphere-swatch { display: block; width: 9px; height: 9px; border-radius: 50%; box-shadow: 0 0 10px currentColor; }
+.swatch-golden { background: #ffbd55; color: #ffbd55; }
+.swatch-midday { background: #f3e19a; color: #f3e19a; }
+.swatch-blue { background: #87bbff; color: #87bbff; }
+.swatch-night { background: #b3a5ff; color: #b3a5ff; }
+.scene-utility-button { display: flex; align-items: center; justify-content: center; gap: 7px; min-width: 62px; min-height: 30px; padding: 0 10px; border: 1px solid transparent; border-radius: 999px; background: transparent; color: rgba(237,241,245,.78); font: 8px var(--mono); letter-spacing: .06em; cursor: pointer; transition: background .2s, color .2s; }
+.scene-utility-button:hover, .scene-utility-button[aria-expanded="true"] { background: rgba(255,255,255,.11); color: #fff; }
+.scene-utility-button[aria-pressed="false"] { color: #f2c65a; }
+.scene-utility-button > span:first-child { font: 14px var(--sans); }
+.drive-view #worldCanvas, .drive-view .atmosphere-canvas { transition: filter .65s ease; }
+.drive-view[data-atmosphere="midday"] #worldCanvas, .drive-view[data-atmosphere="midday"] .atmosphere-canvas { filter: brightness(1.1) saturate(1.1) contrast(1.02); }
+.drive-view[data-atmosphere="blue-hour"] #worldCanvas, .drive-view[data-atmosphere="blue-hour"] .atmosphere-canvas { filter: brightness(.83) saturate(.9) hue-rotate(8deg); }
+.drive-view[data-atmosphere="night"] #worldCanvas, .drive-view[data-atmosphere="night"] .atmosphere-canvas { filter: brightness(.58) saturate(.78) hue-rotate(12deg); }
+.drive-view[data-atmosphere="blue-hour"] .map-vignette { background: linear-gradient(90deg, rgba(18, 27, 62, .32), transparent 58%), linear-gradient(0deg, rgba(16, 23, 55, .4), transparent 52%, rgba(30, 45, 93, .12)); }
+.drive-view[data-atmosphere="night"] .map-vignette { background: linear-gradient(90deg, rgba(9, 14, 34, .44), transparent 58%), linear-gradient(0deg, rgba(8, 12, 28, .5), transparent 52%, rgba(18, 22, 52, .22)); }
 .map-topline { position: absolute; top: 101px; left: clamp(25px, 5vw, 76px); right: clamp(25px, 5vw, 76px); display: flex; justify-content: space-between; pointer-events: none; }
 .map-status, .map-coordinates { display: flex; align-items: center; gap: 10px; color: rgba(248, 249, 240, .88); font: 10px var(--mono); letter-spacing: .1em; text-shadow: 0 1px 8px rgba(10, 20, 12, .5); }
 .live-dot, .availability-dot { display: inline-block; flex: 0 0 auto; width: 7px; height: 7px; border-radius: 50%; background: #cbf19d; box-shadow: 0 0 0 4px rgba(203, 241, 157, .18); }
@@ -83,7 +110,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--lime); outline-
 .world-label-skills { bottom: 14%; left: 50%; }
 .world-label-contact { bottom: 15%; right: 13%; }
 
-.map-legend { position: absolute; z-index: 2; top: 24%; right: clamp(25px, 5vw, 76px); width: 210px; padding: 15px 16px 11px; border: 1px solid rgba(245, 248, 235, .2); background: rgba(16, 26, 18, .79); color: var(--ink); backdrop-filter: blur(8px); box-shadow: 0 16px 60px rgba(15, 30, 17, .16); }
+.map-legend { position: absolute; z-index: 7; top: 24%; right: clamp(25px, 5vw, 76px); width: 210px; padding: 15px 16px 11px; border: 1px solid rgba(245, 248, 235, .2); border-radius: 14px; background: rgba(12, 17, 22, .78); color: var(--ink); backdrop-filter: blur(14px); box-shadow: 0 16px 60px rgba(15, 30, 17, .22); }
 .legend-heading { display: flex; justify-content: space-between; padding-bottom: 10px; margin-bottom: 5px; border-bottom: 1px solid rgba(245, 248, 235, .15); color: #dce2d6; font: 9px var(--mono); letter-spacing: .12em; }
 .legend-heading span { color: var(--lime); }
 .map-legend button { display: grid; grid-template-columns: 30px 1fr 14px; align-items: center; width: 100%; padding: 9px 0; border: 0; border-bottom: 1px solid rgba(245, 248, 235, .08); background: transparent; color: #e5e9de; text-align: left; font-size: 11px; cursor: pointer; transition: color .2s, transform .2s; }
@@ -95,6 +122,15 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--lime); outline-
 .legend-car { color: var(--lime); }
 
 .welcome-card { position: absolute; top: 50%; left: clamp(25px, 10vw, 155px); z-index: 4; width: min(520px, calc(100% - 50px)); transform: translateY(-42%); padding: clamp(25px, 4vw, 48px); background: linear-gradient(145deg, rgba(22, 33, 27, .96), rgba(13, 21, 17, .92)); border: 1px solid rgba(240, 245, 230, .2); box-shadow: 0 26px 90px rgba(15, 28, 17, .4), inset 0 1px rgba(255,255,255,.035); backdrop-filter: blur(18px); animation: card-in .75s cubic-bezier(.2,.75,.25,1) both; }
+.drive-mode .welcome-card { top: auto; bottom: 32px; left: clamp(24px, 5vw, 76px); width: min(410px, calc(100% - 48px)); transform: none; padding: 23px 26px 19px; border-radius: 16px; background: rgba(12, 17, 22, .82); box-shadow: 0 18px 56px rgba(8,12,16,.26), inset 0 1px rgba(255,255,255,.05); animation: scene-card-in .5s cubic-bezier(.2,.75,.25,1) both; }
+@keyframes scene-card-in { from { opacity: 0; translate: -10px 0; } to { opacity: 1; translate: 0 0; } }
+.drive-mode .welcome-card::before { top: 23px; border-radius: 2px; }
+.drive-mode .welcome-card h1 { margin: 15px 0 10px; font-size: clamp(38px, 4.2vw, 54px); }
+.drive-mode .welcome-copy { max-width: 310px; font-size: 12px; }
+.drive-mode .welcome-actions { margin-top: 18px; }
+.drive-mode .welcome-foot { margin-top: 18px; padding-top: 13px; }
+.drive-view.is-driving .welcome-card { display: none; }
+.drive-view.hud-hidden .map-topline, .drive-view.hud-hidden .checkpoint-nav, .drive-view.hud-hidden .map-legend:not([hidden]), .drive-view.hud-hidden .welcome-card, .drive-view.hud-hidden .drive-hud, .drive-view.hud-hidden .drive-help, .drive-view.hud-hidden .sticker-shelf, .drive-view.hud-hidden .interaction-prompt, .drive-view.hud-hidden .map-credit { visibility: hidden; opacity: 0; pointer-events: none; }
 .welcome-card::before { position: absolute; top: 28px; left: -1px; width: 2px; height: 72px; background: linear-gradient(transparent, var(--lime), transparent); box-shadow: 0 0 18px rgba(232, 188, 120, .25); content: ""; }
 @keyframes card-in { from { opacity: 0; transform: translate(-12px, calc(-42% + 8px)); } to { opacity: 1; transform: translate(0, -42%); } }
 .eyebrow { display: flex; align-items: center; gap: 10px; color: #b6c1b0; font: 9px var(--mono); letter-spacing: .12em; text-transform: uppercase; }
@@ -291,8 +327,15 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--lime); outline-
   .primary-nav a { flex: 0 0 auto; display: flex; align-items: center; font-size: 10px; }
   .primary-nav a::after { bottom: 0; }
   .view-switch { gap: 6px; padding: 8px 9px; font-size: 9px; }
+  body.drive-mode .primary-nav { display: none; }
+  .drive-mode .scene-toolbar { top: 72px; right: 12px; left: 12px; justify-content: space-between; gap: 5px; }
+  .atmosphere-control, .scene-utility-controls { gap: 1px; padding: 4px; }
+  .scene-control-label, .atmosphere-name, .scene-utility-button > span:last-child { display: none; }
+  .atmosphere-control button { justify-content: center; min-width: 34px; min-height: 30px; padding: 0 7px; }
+  .scene-utility-button { min-width: 34px; min-height: 30px; padding: 0 6px; }
+  .scene-utility-button > span:first-child { font-size: 15px; }
   .drive-view { min-height: 680px; height: 100svh; }
-  .map-topline { top: 122px; left: 20px; right: 20px; }
+  .map-topline { top: 120px; left: 20px; right: 20px; }
   .map-status, .map-coordinates { font-size: 8px; }
   .map-coordinates { display: none; }
   .checkpoint-nav { top: 211px; right: 50%; width: min(300px, calc(100% - 30px)); transform: translateX(50%); }
@@ -308,6 +351,12 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--lime); outline-
   .welcome-drive-touch { display: inline; }
   .welcome-foot .keycap { display: none; }
   .map-legend { display: none; }
+  .drive-view .map-legend.is-open { display: block; top: 165px; right: 14px; left: 14px; width: auto; max-height: calc(100% - 190px); overflow-y: auto; }
+  .drive-mode .welcome-card { bottom: 24px; left: 14px; width: min(410px, calc(100% - 28px)); padding: 18px 19px 15px; }
+  .drive-mode .welcome-card h1 { margin: 12px 0 8px; font-size: clamp(36px, 11vw, 48px); }
+  .drive-mode .welcome-copy { font-size: 11px; }
+  .drive-mode .welcome-actions { gap: 12px; margin-top: 14px; }
+  .drive-mode .welcome-foot { display: none; }
   .world-label { display: none; }
   .map-credit { right: 17px; bottom: 18px; font-size: 7px; }
   .drive-hud { top: 153px; left: 18px; gap: 8px; min-height: 45px; padding: 6px 7px 6px 9px; }

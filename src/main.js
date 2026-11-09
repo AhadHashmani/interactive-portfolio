@@ -174,6 +174,8 @@ const game = {
   activePrompt: null,
   previousPrompt: null,
   district: null,
+  atmosphere: "golden-hour",
+  hudVisible: true,
   checkpointIndex: 0,
   car: { x: 780 * WORLD_SCALE, y: 510 * WORLD_SCALE, heading: -Math.PI / 2, speed: 0, visualSteer: 0, braking: false, driftAngle: 0, boosting: false },
   camera: { x: 780 * WORLD_SCALE, y: 510 * WORLD_SCALE, heading: -Math.PI / 2 },
@@ -724,6 +726,7 @@ function announce(message) {
 }
 
 function showPortfolio(scrollToId = false) {
+  document.body.classList.remove("drive-mode");
   driveView.hidden = true;
   portfolioView.hidden = false;
   clearInput();
@@ -736,6 +739,7 @@ function showPortfolio(scrollToId = false) {
 }
 
 function showDrive(showWelcome = false) {
+  document.body.classList.add("drive-mode");
   portfolioView.hidden = true;
   driveView.hidden = false;
   if (showWelcome) {
@@ -744,7 +748,8 @@ function showDrive(showWelcome = false) {
     driveHud.hidden = true;
     driveHelp.hidden = true;
   }
-  mapLegend.hidden = game.driving;
+  mapLegend.hidden = game.driving || isMobile.matches;
+  document.querySelector("#sceneMapToggle").setAttribute("aria-expanded", String(!mapLegend.hidden));
   updateTouchControls();
   updateCheckpointNavigation();
   window.scrollTo({ top: 0, behavior: reducedMotion.matches ? "auto" : "smooth" });
@@ -3478,7 +3483,8 @@ function startLoop() {
 function setDriving(active) {
   game.driving = active;
   driveView.classList.toggle("is-driving", active);
-  mapLegend.hidden = active;
+  mapLegend.hidden = active || isMobile.matches;
+  document.querySelector("#sceneMapToggle").setAttribute("aria-expanded", String(!mapLegend.hidden));
   welcomeCard.hidden = active;
   driveHud.hidden = !active;
   driveHelp.hidden = !active;
@@ -3546,6 +3552,9 @@ function configureTouchControls() {
   });
   isMobile.addEventListener("change", () => {
     updateTouchControls();
+    mapLegend.hidden = game.driving || isMobile.matches;
+    mapLegend.classList.remove("is-open");
+    document.querySelector("#sceneMapToggle").setAttribute("aria-expanded", String(!mapLegend.hidden));
   });
 }
 
@@ -3602,6 +3611,31 @@ function handleRoute() {
 }
 
 function installEvents() {
+  document.querySelectorAll(".atmosphere-control button[data-atmosphere]").forEach((button) => {
+    button.addEventListener("click", () => {
+      game.atmosphere = button.dataset.atmosphere;
+      driveView.dataset.atmosphere = game.atmosphere;
+      document.querySelectorAll(".atmosphere-control button[data-atmosphere]").forEach((preset) => {
+        preset.setAttribute("aria-pressed", String(preset === button));
+      });
+      announce(`${button.getAttribute("aria-label")} atmosphere selected`);
+    });
+  });
+  document.querySelector("#sceneHudToggle").addEventListener("click", (event) => {
+    game.hudVisible = !game.hudVisible;
+    driveView.classList.toggle("hud-hidden", !game.hudVisible);
+    const button = event.currentTarget;
+    button.setAttribute("aria-pressed", String(game.hudVisible));
+    button.querySelector("span:last-child").textContent = game.hudVisible ? "HIDE UI" : "SHOW UI";
+    button.title = game.hudVisible ? "Hide interface" : "Show interface";
+    announce(game.hudVisible ? "Interface shown" : "Interface hidden");
+  });
+  document.querySelector("#sceneMapToggle").addEventListener("click", (event) => {
+    mapLegend.hidden = !mapLegend.hidden;
+    mapLegend.classList.toggle("is-open", !mapLegend.hidden);
+    event.currentTarget.setAttribute("aria-expanded", String(!mapLegend.hidden));
+    announce(mapLegend.hidden ? "Destinations hidden" : "Destinations shown");
+  });
   document.querySelector("#startDriving").addEventListener("click", () => {
     setDriving(true);
   });

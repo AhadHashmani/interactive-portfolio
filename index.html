@@ -41,10 +41,24 @@
     </header>
 
     <main>
-      <section class="drive-view" id="driveView" aria-label="Interactive portfolio map">
+      <section class="drive-view" id="driveView" data-atmosphere="golden-hour" aria-label="Interactive portfolio map">
         <canvas id="worldCanvas" aria-hidden="true"></canvas>
         <canvas id="atmosphereCanvas" class="atmosphere-canvas" aria-hidden="true"></canvas>
         <div class="map-vignette" aria-hidden="true"></div>
+
+        <div class="scene-toolbar" aria-label="Driving scene controls">
+          <div class="atmosphere-control" role="group" aria-label="Choose time of day">
+            <span class="scene-control-label">ATMOSPHERE</span>
+            <button type="button" data-atmosphere="golden-hour" aria-label="Golden hour" aria-pressed="true" title="Golden hour"><span class="atmosphere-swatch swatch-golden"></span><span class="atmosphere-name">GOLDEN</span></button>
+            <button type="button" data-atmosphere="midday" aria-label="Midday" aria-pressed="false" title="Midday"><span class="atmosphere-swatch swatch-midday"></span><span class="atmosphere-name">DAY</span></button>
+            <button type="button" data-atmosphere="blue-hour" aria-label="Blue hour" aria-pressed="false" title="Blue hour"><span class="atmosphere-swatch swatch-blue"></span><span class="atmosphere-name">BLUE</span></button>
+            <button type="button" data-atmosphere="night" aria-label="Night" aria-pressed="false" title="Night"><span class="atmosphere-swatch swatch-night"></span><span class="atmosphere-name">NIGHT</span></button>
+          </div>
+          <div class="scene-utility-controls">
+            <button class="scene-utility-button" id="sceneMapToggle" type="button" aria-controls="mapLegend" aria-expanded="true" title="Show or hide destinations"><span aria-hidden="true">⌖</span><span>MAP</span></button>
+            <button class="scene-utility-button" id="sceneHudToggle" type="button" aria-pressed="true" title="Hide interface"><span aria-hidden="true">◉</span><span>HIDE UI</span></button>
+          </div>
+        </div>
 
         <div class="map-topline">
           <div class="map-status">
