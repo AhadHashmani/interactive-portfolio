@@ -147,6 +147,8 @@ const canvas = document.querySelector("#worldCanvas");
 const context = canvas.getContext("2d");
 const TREE_SPRITES = createTreeSprites();
 const driveView = document.querySelector("#driveView");
+const atmosphereCanvas = document.querySelector("#atmosphereCanvas");
+const atmosphereRenderer = createAtmosphereRenderer(atmosphereCanvas);
 const portfolioView = document.querySelector("#portfolioView");
 const welcomeCard = document.querySelector("#welcomeCard");
 const driveHud = document.querySelector("#driveHud");
@@ -1012,7 +1014,133 @@ function resizeCanvas() {
   canvas.style.width = `${game.width}px`;
   canvas.style.height = `${game.height}px`;
   context?.setTransform(game.pixelRatio, 0, 0, game.pixelRatio, 0, 0);
+  resizeAtmosphereRenderer();
   render();
+}
+
+function createAtmosphereRenderer(target) {
+  const gl = target?.getContext("webgl", {
+    alpha: true,
+    antialias: false,
+    depth: false,
+    stencil: false,
+    powerPreference: "low-power",
+  });
+  if (!gl) {
+    driveView.classList.add("shader-fallback");
+    return null;
+  }
+
+  const compileShader = (type, source) => {
+    const shader = gl.createShader(type);
+    if (!shader) return null;
+    gl.shaderSource(shader, source);
+    gl.compileShader(shader);
+    if (gl.getShaderParameter(shader, gl.COMPILE_STATUS)) return shader;
+    console.error("Portfolio Drive atmosphere shader failed to compile.", gl.getShaderInfoLog(shader));
+    gl.deleteShader(shader);
+    return null;
+  };
+  const vertexShader = compileShader(gl.VERTEX_SHADER, `
+    attribute vec2 a_position;
+    varying vec2 v_uv;
+    void main() {
+      v_uv = a_position * 0.5 + 0.5;
+      gl_Position = vec4(a_position, 0.0, 1.0);
+    }
+  `);
+  const fragmentShader = compileShader(gl.FRAGMENT_SHADER, `
+    precision mediump float;
+    uniform float u_time;
+    varying vec2 v_uv;
+    void main() {
+      float wave = 0.38 + 0.11 * sin(v_uv.x * 4.2 + u_time * 0.18);
+      float glow = 1.0 - smoothstep(0.015, 0.2, abs(v_uv.y - wave));
+      float sweep = 0.5 + 0.5 * sin(v_uv.x * 5.0 - u_time * 0.28);
+      vec3 cool = vec3(0.22, 0.64, 0.61);
+      vec3 warm = vec3(0.92, 0.67, 0.42);
+      vec3 tint = mix(cool, warm, smoothstep(0.58, 0.96, v_uv.x));
+      float alpha = 0.003 + glow * (0.01 + sweep * 0.015);
+      gl_FragColor = vec4(tint, min(alpha, 0.028));
+    }
+  `);
+
+  if (!vertexShader || !fragmentShader) {
+    if (vertexShader) gl.deleteShader(vertexShader);
+    if (fragmentShader) gl.deleteShader(fragmentShader);
+    driveView.classList.add("shader-fallback");
+    return null;
+  }
+
+  const program = gl.createProgram();
+  if (!program) {
+    console.error("Portfolio Drive atmosphere shader could not create a WebGL program.");
+    gl.deleteShader(vertexShader);
+    gl.deleteShader(fragmentShader);
+    driveView.classList.add("shader-fallback");
+    return null;
+  }
+  gl.attachShader(program, vertexShader);
+  gl.attachShader(program, fragmentShader);
+  gl.linkProgram(program);
+  gl.deleteShader(vertexShader);
+  gl.deleteShader(fragmentShader);
+  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+    console.error("Portfolio Drive atmosphere shader failed to link.", gl.getProgramInfoLog(program));
+    gl.deleteProgram(program);
+    driveView.classList.add("shader-fallback");
+    return null;
+  }
+
+  const positionLocation = gl.getAttribLocation(program, "a_position");
+  const positionBuffer = gl.createBuffer();
+  if (positionLocation < 0 || !positionBuffer) {
+    console.error("Portfolio Drive atmosphere shader could not initialize its vertex buffer.");
+    gl.deleteProgram(program);
+    if (positionBuffer) gl.deleteBuffer(positionBuffer);
+    driveView.classList.add("shader-fallback");
+    return null;
+  }
+  gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]), gl.STATIC_DRAW);
+  gl.useProgram(program);
+  gl.enableVertexAttribArray(positionLocation);
+  gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+  gl.disable(gl.BLEND);
+  gl.disable(gl.DEPTH_TEST);
+
+  return {
+    gl,
+    program,
+    positionLocation,
+    timeLocation: gl.getUniformLocation(program, "u_time"),
+    lastRenderedAt: -Infinity,
+  };
+}
+
+function resizeAtmosphereRenderer() {
+  if (!atmosphereRenderer) return;
+  const { gl } = atmosphereRenderer;
+  const width = Math.max(1, Math.round(game.width * 0.65));
+  const height = Math.max(1, Math.round(game.height * 0.65));
+  if (atmosphereCanvas.width === width && atmosphereCanvas.height === height) return;
+  atmosphereCanvas.width = width;
+  atmosphereCanvas.height = height;
+  gl.viewport(0, 0, width, height);
+}
+
+function drawAtmosphere(timestamp) {
+  if (!atmosphereRenderer || reducedMotion.matches || driveView.classList.contains("shader-fallback")
+    || timestamp - atmosphereRenderer.lastRenderedAt < 80) return;
+  if (atmosphereRenderer.gl.isContextLost()) {
+    driveView.classList.add("shader-fallback");
+    return;
+  }
+  atmosphereRenderer.lastRenderedAt = timestamp;
+  const { gl, program, timeLocation } = atmosphereRenderer;
+  gl.useProgram(program);
+  gl.uniform1f(timeLocation, timestamp * 0.001);
+  gl.drawArrays(gl.TRIANGLES, 0, 6);
 }
 
 function projectWorldPoint(x, y, elevation = 0) {
@@ -2930,6 +3058,7 @@ function frame(timestamp) {
     if (!driveView.hidden && game.driving && !game.dialogOpen) {
       render(game.accumulator / DRIVE.fixedStep);
     }
+    if (!driveView.hidden && portfolioView.hidden) drawAtmosphere(timestamp);
   } catch (error) {
     reportFrameError(error);
     drawFrameRecovery();
@@ -3147,6 +3276,22 @@ function installEvents() {
   window.addEventListener("hashchange", handleRoute);
 }
 
+function initializeScrollAnimations() {
+  if (reducedMotion.matches || !("IntersectionObserver" in window)) return;
+  const sections = document.querySelectorAll(".portfolio-section, .contact-section");
+  const observer = new IntersectionObserver((entries, activeObserver) => {
+    entries.forEach((entry) => {
+      if (!entry.isIntersecting) return;
+      entry.target.classList.add("is-visible");
+      activeObserver.unobserve(entry.target);
+    });
+  }, { threshold: 0.08, rootMargin: "0px 0px -24px 0px" });
+  sections.forEach((section) => {
+    section.classList.add("motion-ready");
+    observer.observe(section);
+  });
+}
+
 function initialize() {
   const storedCheckpoints = safeStorage.get(CHECKPOINT_STORAGE_KEY);
   if (storedCheckpoints) {
@@ -3170,6 +3315,7 @@ function initialize() {
   hydratePortfolioCopy();
   configureTouchControls();
   installEvents();
+  initializeScrollAnimations();
   updateStickerShelf();
   if (!context) {
     document.querySelector("#startDriving").disabled = true;
