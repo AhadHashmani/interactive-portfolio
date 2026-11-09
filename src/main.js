@@ -183,6 +183,7 @@ const game = {
   boostCharge: 100,
   effects: [],
   frameError: "",
+  lastHudUpdate: 0,
 };
 
 const projection = {
@@ -311,6 +312,15 @@ function exhibitWorldPoint(exhibit) {
 const SCENE_EXHIBITS = exhibits
   .map((exhibit) => ({ exhibit, position: exhibitWorldPoint(exhibit), depth: 0 }))
   .filter(({ position }) => position);
+const SCENE_DESTINATIONS = SCENE_EXHIBITS.map(({ exhibit, position }) => ({
+  ...exhibit,
+  ...position,
+  targetType: "exhibit",
+}));
+const SCENE_CHECKPOINTS = districts.map((district) => ({
+  ...district,
+  targetType: "checkpoint",
+}));
 
 function makeTagRow(values) {
   const row = element("div", "tag-row");
@@ -772,7 +782,7 @@ function updateCar(dt) {
   const controls = readControls();
   const car = game.car;
   const onRoad = ROAD_SEGMENTS.some((segment) => distanceToSegment(car.x, car.y, segment) < DRIVE.roadWidth * 0.57);
-  const boosting = controls.boost && game.boostCharge > 0 && car.speed >= 0;
+  const boosting = controls.boost && !controls.brake && game.boostCharge > 0 && car.speed >= 0;
   car.boosting = boosting;
   if (boosting) game.boostCharge = Math.max(0, game.boostCharge - DRIVE.boostDrain * dt);
   else game.boostCharge = Math.min(100, game.boostCharge + DRIVE.boostRecharge * dt);
@@ -780,14 +790,14 @@ function updateCar(dt) {
     * (boosting ? DRIVE.boostSpeedMultiplier : 1);
   const reverseLimit = onRoad ? DRIVE.maxReverseSpeed : DRIVE.maxReverseSpeed * DRIVE.offRoadSpeedRatio;
 
-  if (controls.accelerate) {
+  if (controls.brake) {
+    if (car.speed > 0) car.speed = accelerateTowardZero(car.speed, DRIVE.braking * dt);
+    else car.speed = Math.max(-reverseLimit, car.speed - DRIVE.acceleration * 0.7 * dt);
+  } else if (controls.accelerate) {
     if (car.speed < 0) car.speed = accelerateTowardZero(car.speed, DRIVE.braking * dt);
     else car.speed = Math.min(limit, car.speed + DRIVE.acceleration * (boosting ? 2 : 1) * dt);
   } else if (boosting) {
     car.speed = Math.min(limit, car.speed + DRIVE.acceleration * 1.35 * dt);
-  } else if (controls.brake) {
-    if (car.speed > 0) car.speed = accelerateTowardZero(car.speed, DRIVE.braking * dt);
-    else car.speed = Math.max(-reverseLimit, car.speed - DRIVE.acceleration * 0.7 * dt);
   } else {
     car.speed = accelerateTowardZero(car.speed, DRIVE.coast * dt);
   }
@@ -863,21 +873,30 @@ function distanceToSegment(x, y, segment) {
 
 function updateInteraction() {
   if (!game.driving || game.dialogOpen) return;
-  const nextCheckpoint = getNextCheckpoint();
-  const roadPositionedExhibits = exhibits.map((exhibit) => ({
-    ...exhibit,
-    ...exhibitWorldPoint(exhibit),
-    targetType: "exhibit",
-  }));
-  const destinations = [
-    ...(nextCheckpoint ? [{ ...nextCheckpoint, targetType: "checkpoint" }] : []),
-    ...roadPositionedExhibits,
-  ];
-  const eligible = destinations
-    .map((target) => ({ target, range: distance(game.car, target) }))
-    .filter(({ target, range }) => range < (game.activePrompt?.id === target.id ? DRIVE.interactionExitRadius : DRIVE.interactionRadius))
-    .sort((a, b) => a.range - b.range)[0];
-  const next = eligible && Math.abs(game.car.speed) < DRIVE.interactionSpeed ? eligible.target : null;
+  const checkpoint = getNextCheckpoint();
+  let closest = null;
+  let closestRange = Infinity;
+  const consider = (target) => {
+    const range = distance(game.car, target);
+    const threshold = game.activePrompt?.id === target.id
+      ? DRIVE.interactionExitRadius
+      : DRIVE.interactionRadius;
+    if (range < threshold && range < closestRange) {
+      closest = target;
+      closestRange = range;
+    }
+  };
+  if (checkpoint) {
+    for (const target of SCENE_CHECKPOINTS) {
+      if (target.id === checkpoint.id) {
+        consider(target);
+        break;
+      }
+    }
+  }
+  for (const destination of SCENE_DESTINATIONS) consider(destination);
+  const next = closest && Math.abs(game.car.speed) < DRIVE.interactionSpeed ? closest : null;
+  if (game.activePrompt === next) return;
   game.activePrompt = next;
   const prompt = document.querySelector("#interactionPrompt");
   prompt.hidden = !next;
@@ -1209,39 +1228,73 @@ function projectClippedGroundPolygon(polygon) {
 }
 
 function drawRoadMarkings() {
+  const strokeLine = (start, end, color, width) => {
+    const points = projectWorldLine(start, end, DRIVE.roadWidth * 0.3);
+    if (!points) return;
+    context.beginPath();
+    context.moveTo(points[0].x, points[0].y);
+    context.lineTo(points[1].x, points[1].y);
+    context.strokeStyle = color;
+    context.lineWidth = clamp((points[0].scale + points[1].scale) * width, 0.8, 8);
+    context.stroke();
+  };
+  context.lineCap = "round";
   for (const segment of ROAD_SEGMENTS) {
     const length = Math.hypot(segment.x2 - segment.x1, segment.y2 - segment.y1);
-    for (let along = 0; along < length; along += 126 * WORLD_SCALE) {
-      const dashEnd = Math.min(along + 48 * WORLD_SCALE, length);
-      const centerStart = roadPoint(segment, along);
-      const centerEnd = roadPoint(segment, dashEnd);
-      const dashCenter = roadPoint(segment, (along + dashEnd) / 2);
-      if (ROAD_INTERSECTIONS.some((intersection) => distance(dashCenter, intersection) < DRIVE.roadWidth * 1.15)) continue;
-      const start = projectWorldPoint(centerStart.x, centerStart.y);
-      const end = projectWorldPoint(centerEnd.x, centerEnd.y);
-      if (!start || !end) continue;
-      context.beginPath();
-      context.moveTo(start.x, start.y);
-      context.lineTo(end.x, end.y);
-      context.strokeStyle = "rgba(240, 211, 151, .92)";
-      context.lineWidth = clamp((start.scale + end.scale) * 1.3, 1, 7);
-      context.stroke();
-
-      for (const laneOffset of [-DRIVE.roadWidth * .35, DRIVE.roadWidth * .35]) {
-        const laneStart = roadPoint(segment, along, laneOffset);
-        const laneEnd = roadPoint(segment, dashEnd, laneOffset);
-        const laneA = projectWorldPoint(laneStart.x, laneStart.y);
-        const laneB = projectWorldPoint(laneEnd.x, laneEnd.y);
-        if (!laneA || !laneB) continue;
-        context.beginPath();
-        context.moveTo(laneA.x, laneA.y);
-        context.lineTo(laneB.x, laneB.y);
-        context.strokeStyle = "rgba(220, 220, 208, .54)";
-        context.lineWidth = clamp((laneA.scale + laneB.scale) * .8, .8, 5);
-        context.stroke();
+    for (const edgeOffset of [-DRIVE.roadWidth * .465, DRIVE.roadWidth * .465]) {
+      strokeLine(
+        roadPoint(segment, 0, edgeOffset),
+        roadPoint(segment, length, edgeOffset),
+        "rgba(237, 232, 214, .82)",
+        1.3,
+      );
+    }
+    for (const centerOffset of [-DRIVE.roadWidth * .014, DRIVE.roadWidth * .014]) {
+      strokeLine(
+        roadPoint(segment, 0, centerOffset),
+        roadPoint(segment, length, centerOffset),
+        "rgba(247, 198, 104, .96)",
+        1.75,
+      );
+    }
+    for (const laneOffset of [-DRIVE.roadWidth * .22, DRIVE.roadWidth * .22]) {
+      for (let along = 0; along < length; along += 120 * WORLD_SCALE) {
+        const dashEnd = Math.min(along + 38 * WORLD_SCALE, length);
+        const center = roadPoint(segment, (along + dashEnd) / 2);
+        if (ROAD_INTERSECTIONS.some((intersection) => distance(center, intersection) < DRIVE.roadWidth * 1.15)) continue;
+        strokeLine(
+          roadPoint(segment, along, laneOffset),
+          roadPoint(segment, dashEnd, laneOffset),
+          "rgba(229, 232, 223, .7)",
+          1.1,
+        );
       }
     }
   }
+  context.lineCap = "butt";
+}
+
+function projectWorldLine(start, end, nearDepth = 8.1) {
+  let startPoint = start;
+  let endPoint = end;
+  let startDepth = projectedDepth(startPoint.x, startPoint.y);
+  let endDepth = projectedDepth(endPoint.x, endPoint.y);
+  if ((startDepth < nearDepth && endDepth < nearDepth)
+    || (startDepth > RENDER_DISTANCE && endDepth > RENDER_DISTANCE)) return null;
+  if (startDepth < nearDepth || startDepth > RENDER_DISTANCE) {
+    const boundary = startDepth < nearDepth ? nearDepth : RENDER_DISTANCE;
+    const ratio = (boundary - startDepth) / (endDepth - startDepth);
+    startPoint = { x: lerp(startPoint.x, endPoint.x, ratio), y: lerp(startPoint.y, endPoint.y, ratio) };
+    startDepth = boundary;
+  }
+  if (endDepth < nearDepth || endDepth > RENDER_DISTANCE) {
+    const boundary = endDepth < nearDepth ? nearDepth : RENDER_DISTANCE;
+    const ratio = (boundary - startDepth) / (endDepth - startDepth);
+    endPoint = { x: lerp(startPoint.x, endPoint.x, ratio), y: lerp(startPoint.y, endPoint.y, ratio) };
+  }
+  const projectedStart = projectWorldPoint(startPoint.x, startPoint.y);
+  const projectedEnd = projectWorldPoint(endPoint.x, endPoint.y);
+  return projectedStart && projectedEnd ? [projectedStart, projectedEnd] : null;
 }
 
 function drawRoads() {
@@ -1387,6 +1440,17 @@ function drawStreetLight(light) {
 }
 
 function drawBuilding(building) {
+  const centerX = building.x + building.w / 2;
+  const centerY = building.y + building.d / 2;
+  const centerDepth = projectedDepth(centerX, centerY);
+  const extent = Math.hypot(building.w, building.d) * 0.6;
+  if (centerDepth < -extent || centerDepth > RENDER_DISTANCE + extent) return;
+  const center = centerDepth > 8 ? projectWorldPoint(centerX, centerY, building.h / 2) : null;
+  if (center && centerDepth > 0) {
+    const projectedRadius = extent * projection.focal / centerDepth;
+    if (center.x + projectedRadius < -120 || center.x - projectedRadius > game.width + 120) return;
+  }
+  const detailed = Boolean(center && center.scale > 0.22);
   const drawPolygon = (points, fill, stroke = null, lineWidth = 1) => {
     if (points.length < 3) return;
     context.beginPath();
@@ -1475,19 +1539,21 @@ function drawBuilding(building) {
 
   context.save();
   context.globalAlpha = 1;
-  const shadow = projectEllipse(
-    building.x + building.w * .58 + building.h * .13,
-    building.y + building.d * .58 + building.h * .1,
-    building.w * .7,
-    building.d * .68,
-    0,
-    20,
-  );
-  if (shadow.every(Boolean)) {
-    context.fillStyle = "rgba(55, 47, 39, .2)";
-    context.beginPath();
-    traceProjectedPoints(shadow);
-    context.fill();
+  if (detailed) {
+    const shadow = projectEllipse(
+      building.x + building.w * .58 + building.h * .13,
+      building.y + building.d * .58 + building.h * .1,
+      building.w * .7,
+      building.d * .68,
+      0,
+      20,
+    );
+    if (shadow.every(Boolean)) {
+      context.fillStyle = "rgba(55, 47, 39, .2)";
+      context.beginPath();
+      traceProjectedPoints(shadow);
+      context.fill();
+    }
   }
 
   const frontY = projection.cameraY >= building.y + building.d / 2
@@ -1525,8 +1591,10 @@ function drawBuilding(building) {
     [building.x, frontY, building.h * .07],
   ], facadeShade(building.color, .7), "rgba(241, 225, 199, .3)");
 
-  const windowRows = building.h > 78 ? [building.h * .27, building.h * .59] : [building.h * .42];
-  const frontColumns = building.w > 120 ? 3 : 2;
+  const windowRows = detailed
+    ? building.h > 78 ? [building.h * .27, building.h * .59] : [building.h * .42]
+    : [];
+  const frontColumns = detailed ? building.w > 120 ? 3 : 2 : 0;
   for (let column = 0; column < frontColumns; column += 1) {
     const centerX = building.x + building.w * ((column + 1) / (frontColumns + 1));
     for (const sill of windowRows) {
@@ -1560,7 +1628,7 @@ function drawBuilding(building) {
     }
   }
 
-  for (const fraction of [.09, .91]) {
+  for (const fraction of detailed ? [.09, .91] : []) {
     const columnX = building.x + building.w * fraction;
     const columnWidth = building.w * .025;
     projectWall([
@@ -1573,25 +1641,25 @@ function drawBuilding(building) {
 
   const doorWidth = building.w * .15;
   const doorCenterX = building.x + building.w * .5;
-  projectWall([
+  if (detailed) projectWall([
     [doorCenterX - doorWidth / 2, frontY, 0],
     [doorCenterX + doorWidth / 2, frontY, 0],
     [doorCenterX + doorWidth / 2, frontY, building.h * .36],
     [doorCenterX - doorWidth / 2, frontY, building.h * .36],
   ], "#51463c", "rgba(239, 218, 183, .6)");
-  projectWall([
+  if (detailed) projectWall([
     [doorCenterX - doorWidth * .85, frontY, building.h * .4],
     [doorCenterX + doorWidth * .85, frontY, building.h * .4],
     [doorCenterX + doorWidth * .85, frontY + (frontY === building.y + building.d ? building.d : -building.d) * .12, building.h * .4],
     [doorCenterX - doorWidth * .85, frontY + (frontY === building.y + building.d ? building.d : -building.d) * .12, building.h * .4],
   ], facadeShade(building.color, .8), "rgba(247, 235, 211, .64)");
-  projectWall([
+  if (detailed) projectWall([
     [doorCenterX - doorWidth * .8, frontY, building.h * .4],
     [doorCenterX + doorWidth * .8, frontY, building.h * .4],
     [doorCenterX + doorWidth * .8, frontY + (frontY === building.y + building.d ? building.d : -building.d) * .13, building.h * .4],
     [doorCenterX - doorWidth * .8, frontY + (frontY === building.y + building.d ? building.d : -building.d) * .13, building.h * .4],
   ], facadeShade(building.color, 1.2), "rgba(255, 237, 197, .78)");
-  for (const elevation of windowRows.slice(1).map((sill) => sill - building.h * .07)) {
+  for (const elevation of detailed ? windowRows.slice(1).map((sill) => sill - building.h * .07) : []) {
     const band = projectBuildingLine(
       [building.x, frontY, elevation],
       [building.x + building.w, frontY, elevation],
@@ -1606,7 +1674,7 @@ function drawBuilding(building) {
     }
   }
 
-  projectWall([
+  if (detailed) projectWall([
     [building.x, frontY, building.h],
     [building.x + building.w, frontY, building.h],
     [building.x + building.w, frontY, building.h + 5],
@@ -1615,18 +1683,14 @@ function drawBuilding(building) {
 
   const roofUnitX = building.x + building.w * .67;
   const roofUnitY = building.y + building.d * .34;
-  projectWall([
+  if (detailed) projectWall([
     [roofUnitX, roofUnitY, building.h],
     [roofUnitX + building.w * .18, roofUnitY, building.h],
     [roofUnitX + building.w * .18, roofUnitY + building.d * .13, building.h],
     [roofUnitX, roofUnitY + building.d * .13, building.h],
   ], "#817e76", "rgba(255, 247, 230, .42)");
 
-  const roofCenter = projectWorldPoint(
-    building.x + building.w / 2,
-    building.y + building.d / 2,
-    building.h,
-  );
+  const roofCenter = detailed ? projectWorldPoint(centerX, centerY, building.h) : null;
   if (roofCenter && roofCenter.x > -170 && roofCenter.x < game.width + 170) {
     context.fillStyle = "rgba(43, 48, 48, .92)";
     context.font = `600 ${clamp(8 * roofCenter.scale, 5, 9)}px 'DM Mono', monospace`;
@@ -2489,7 +2553,7 @@ function drawBoostPlume(width, length) {
 }
 
 function drawPlayerCar() {
-  const width = clamp(game.width * .052, 39, 70);
+  const width = clamp(game.width * .075, 48, 92);
   const length = width * 1.86;
   const x = game.width / 2;
   const y = game.height * .82;
@@ -2568,6 +2632,20 @@ function drawPlayerCar() {
   context.lineWidth = Math.max(1, width * .025);
   context.stroke(shell);
 
+  context.fillStyle = "#252e34";
+  for (const side of [-1, 1]) {
+    context.beginPath();
+    context.moveTo(side * width * .4, -length * .2);
+    context.lineTo(side * width * .57, -length * .17);
+    context.lineTo(side * width * .55, -length * .08);
+    context.lineTo(side * width * .42, -length * .1);
+    context.closePath();
+    context.fill();
+    context.strokeStyle = "rgba(193, 205, 207, .62)";
+    context.lineWidth = Math.max(1, width * .013);
+    context.stroke();
+  }
+
   const glassGradient = context.createLinearGradient(0, -length * .39, 0, length * .04);
   glassGradient.addColorStop(0, "#080f15");
   glassGradient.addColorStop(.48, "#1c2b35");
@@ -2599,6 +2677,24 @@ function drawPlayerCar() {
   glassReflection.addColorStop(1, "rgba(236, 245, 240, .02)");
   context.fillStyle = glassReflection;
   context.fillRect(-width * .4, -length * .44, width * .8, length * .48);
+  context.restore();
+
+  context.save();
+  context.beginPath();
+  context.moveTo(-width * .29, length * .035);
+  context.quadraticCurveTo(0, length * .09, width * .29, length * .035);
+  context.lineTo(width * .22, length * .34);
+  context.quadraticCurveTo(0, length * .39, -width * .22, length * .34);
+  context.closePath();
+  context.clip();
+  context.strokeStyle = "rgba(232, 188, 120, .82)";
+  context.lineWidth = Math.max(1.2, width * .035);
+  for (const side of [-1, 1]) {
+    context.beginPath();
+    context.moveTo(side * width * .09, length * .04);
+    context.lineTo(side * width * .13, length * .36);
+    context.stroke();
+  }
   context.restore();
 
   context.strokeStyle = "rgba(30, 48, 57, .68)";
@@ -2683,6 +2779,17 @@ function drawPlayerCar() {
   context.roundRect(-width * .13, length * .455, width * .09, length * .025, 2);
   context.roundRect(width * .04, length * .455, width * .09, length * .025, 2);
   context.fill();
+  context.fillStyle = "#8b969a";
+  for (const side of [-1, 1]) {
+    context.beginPath();
+    context.ellipse(side * width * .23, length * .465, width * .075, length * .027, 0, 0, Math.PI * 2);
+    context.fill();
+    context.fillStyle = game.car.boosting ? "#f8c56d" : "#59646b";
+    context.beginPath();
+    context.ellipse(side * width * .23, length * .465, width * .045, length * .016, 0, 0, Math.PI * 2);
+    context.fill();
+    context.fillStyle = "#8b969a";
+  }
 
   game.earnedStickers.forEach((id, index) => {
     const sticker = STICKERS.find((item) => item.id === id);
@@ -2796,18 +2903,29 @@ function frame(timestamp) {
       }
     }
     if (game.driving) {
-      document.querySelector("#speedValue").textContent = String(Math.round(Math.abs(game.car.speed) * .36)).padStart(3, "0");
-      const boostPercent = Math.round(game.boostCharge);
-      document.querySelector("#boostValue").textContent = `${boostPercent}%`;
-      document.querySelector("#boostFill").style.width = `${boostPercent}%`;
-      document.querySelector("#boostFill").classList.toggle("is-depleted", boostPercent === 0);
-      const nearestDistrict = districts.map((district) => ({ district, range: distance(game.car, district) })).sort((a, b) => a.range - b.range)[0];
-      game.district = nearestDistrict.range < DRIVE.interactionExitRadius * 1.7 ? nearestDistrict.district : null;
-      document.querySelector("#currentDistrict").textContent = game.district?.shortTitle.toUpperCase() ?? "WELCOME PLAZA";
-      if (!game.frameError) {
-        document.querySelector("#drivingStatus").textContent = game.district ? `EXPLORING ${game.district.shortTitle.toUpperCase()}` : "CRUISING PORTFOLIO DRIVE";
+      if (!game.lastHudUpdate || timestamp - game.lastHudUpdate >= 100) {
+        game.lastHudUpdate = timestamp;
+        document.querySelector("#speedValue").textContent = String(Math.round(Math.abs(game.car.speed) * .36)).padStart(3, "0");
+        const boostPercent = Math.round(game.boostCharge);
+        document.querySelector("#boostValue").textContent = `${boostPercent}%`;
+        document.querySelector("#boostFill").style.width = `${boostPercent}%`;
+        document.querySelector("#boostFill").classList.toggle("is-depleted", boostPercent === 0);
+        let nearestDistrict = null;
+        let nearestRange = Infinity;
+        for (const district of districts) {
+          const range = distance(game.car, district);
+          if (range < nearestRange) {
+            nearestDistrict = district;
+            nearestRange = range;
+          }
+        }
+        game.district = nearestRange < DRIVE.interactionExitRadius * 1.7 ? nearestDistrict : null;
+        document.querySelector("#currentDistrict").textContent = game.district?.shortTitle.toUpperCase() ?? "WELCOME PLAZA";
+        if (!game.frameError) {
+          document.querySelector("#drivingStatus").textContent = game.district ? `EXPLORING ${game.district.shortTitle.toUpperCase()}` : "CRUISING PORTFOLIO DRIVE";
+        }
+        updateCheckpointNavigation();
       }
-      updateCheckpointNavigation();
     }
     if (!driveView.hidden && game.driving && !game.dialogOpen) {
       render(game.accumulator / DRIVE.fixedStep);
