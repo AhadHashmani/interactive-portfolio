@@ -4,7 +4,7 @@ A responsive, resume-backed portfolio for Ahad Hashmani with an optional behind-
 
 The driving scene uses a longer perspective view, sprite-cached trees, roadside lighting, detailed building facades, smooth camera interpolation, and a low-resolution WebGL atmosphere shader over the Canvas 2D map. Buildings, trees, streetlights, signs, and exhibits are depth-sorted together so nearby scenery correctly occludes distant objects while driving. The original coupe is rendered as a lit low-poly 3D model with animated steering, suspension, headlights, and boost lighting; a Canvas version is retained when WebGL is unavailable. The map shader falls back to a CSS glow and respects reduced-motion preferences. Scene objects are reused between frames, and touch screens use a lower canvas pixel ratio to keep the view responsive. The coupe has a comic-supercar silhouette and animated twin-turbine boost plumes; it does not use Batman, Batmobile, or other franchise artwork. Career billboards include custom employer wordmarks and monograms, rather than copied official logo artwork. The FIFA reward uses a more detailed, stylized globe-and-figures trophy silhouette.
 
-The driving view uses a compact, game-like overlay inspired by immersive city explorers, with selectable golden-hour, midday, blue-hour, and night color grades. The destination panel and interface can be hidden independently; the portfolio and controls remain available on desktop and touch screens.
+The driving view has an original Austin-inspired identity and a compact, immersive scene HUD. Golden-hour, midday, blue-hour, and night color grades can be selected independently from chase, close, and wide camera perspectives. The destination panel and interface can be hidden independently; the portfolio and controls remain available on desktop and touch screens.
 
 The interface uses lightweight CSS motion for status, route prompts, card interactions, and portfolio section reveals. Reduced-motion preferences disable those effects.
 
@@ -24,6 +24,7 @@ ES modules require an HTTP server; do not open `index.html` with `file://`.
 - **Hold Shift while moving:** boost for about 8 seconds from a full charge; charge refills when released
 - Boost draws animated, twin-turbine flame trails behind the car.
 - **Hold Space + steer:** drift through turns and leave tire smoke
+- **V:** cycle between chase, close, and wide camera perspectives
 - **E / Enter:** open the nearby destination
 - **R:** reset to the plaza
 - Signs, trees, and billboards are non-solid. If the car remains blocked by a building, it is returned to the nearest clear road.

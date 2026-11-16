@@ -37,6 +37,12 @@ const DRIVE = {
   fixedStep: 1 / 60,
 };
 
+const CAMERA_PRESETS = {
+  chase: { label: "CHASE", distance: 1, height: 1, focal: 1, horizon: 0.28, carY: 0.82, carScale: 0.96 },
+  close: { label: "CLOSE", distance: 0.64, height: 0.78, focal: 1.14, horizon: 0.255, carY: 0.84, carScale: 1.14 },
+  wide: { label: "WIDE", distance: 1.42, height: 1.45, focal: 0.84, horizon: 0.32, carY: 0.78, carScale: 0.82 },
+};
+
 const CHECKPOINT_ORDER = ["experience", "education", "projects", "skills", "contact"];
 const CHECKPOINT_STORAGE_KEY = "portfolio-drive-checkpoints-v1";
 const STICKER_STORAGE_KEY = "portfolio-drive-stickers-v1";
@@ -175,6 +181,7 @@ const game = {
   previousPrompt: null,
   district: null,
   atmosphere: "golden-hour",
+  cameraMode: "chase",
   hudVisible: true,
   checkpointIndex: 0,
   car: { x: 780 * WORLD_SCALE, y: 510 * WORLD_SCALE, heading: -Math.PI / 2, speed: 0, visualSteer: 0, braking: false, driftAngle: 0, boosting: false },
@@ -199,6 +206,8 @@ const projection = {
   cameraX: 0,
   cameraY: 0,
   focal: 0,
+  cameraHeight: DRIVE.cameraHeight,
+  horizon: DRIVE.horizon,
 };
 
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -1283,6 +1292,7 @@ function createAtmosphereRenderer(target) {
     attribute vec3 a_color;
     uniform vec2 u_resolution;
     uniform float u_size;
+    uniform float u_car_y;
     uniform float u_turn;
     uniform float u_drift;
     uniform float u_speed;
@@ -1300,7 +1310,7 @@ function createAtmosphereRenderer(target) {
       );
       float bounce = sin(u_time * 9.0) * min(u_speed, 1.0) * 0.006;
       float screenY = rotated.y * 0.9 - a_position.z * 0.48 + bounce;
-      float centerY = 1.0 - 2.0 * 0.82;
+      float centerY = 1.0 - 2.0 * u_car_y;
       float clipX = rotated.x * u_size * 2.0 / u_resolution.x;
       float clipY = centerY - screenY * u_size * 2.0 / u_resolution.y;
       float depth = 0.52 - a_position.z * 0.65 - rotated.y * 0.018;
@@ -1369,6 +1379,7 @@ function createAtmosphereRenderer(target) {
         color: gl.getAttribLocation(carProgram, "a_color"),
         resolution: gl.getUniformLocation(carProgram, "u_resolution"),
         size: gl.getUniformLocation(carProgram, "u_size"),
+        carY: gl.getUniformLocation(carProgram, "u_car_y"),
         turn: gl.getUniformLocation(carProgram, "u_turn"),
         drift: gl.getUniformLocation(carProgram, "u_drift"),
         speed: gl.getUniformLocation(carProgram, "u_speed"),
@@ -1437,7 +1448,8 @@ function drawAtmosphere(timestamp) {
   if (!atmosphereRenderer.carProgram || !atmosphereRenderer.carBuffer || !atmosphereRenderer.carAttributes) return;
 
   const { carProgram, carBuffer, carAttributes } = atmosphereRenderer;
-  const size = clamp(game.width * .075, 48, 92);
+  const camera = CAMERA_PRESETS[game.cameraMode];
+  const size = clamp(game.width * .075, 48, 92) * camera.carScale;
   gl.useProgram(carProgram);
   gl.bindBuffer(gl.ARRAY_BUFFER, carBuffer);
   gl.enableVertexAttribArray(carAttributes.position);
@@ -1447,7 +1459,8 @@ function drawAtmosphere(timestamp) {
   gl.vertexAttribPointer(carAttributes.normal, 3, gl.FLOAT, false, 36, 12);
   gl.vertexAttribPointer(carAttributes.color, 3, gl.FLOAT, false, 36, 24);
   gl.uniform2f(carAttributes.resolution, game.width, game.height);
-  gl.uniform1f(carAttributes.size, size * .96);
+  gl.uniform1f(carAttributes.size, size);
+  gl.uniform1f(carAttributes.carY, camera.carY);
   gl.uniform1f(carAttributes.turn, game.car.visualSteer);
   gl.uniform1f(carAttributes.drift, game.car.driftAngle);
   gl.uniform1f(carAttributes.speed, Math.min(Math.abs(game.car.speed) / DRIVE.maxForwardSpeed, 1));
@@ -1472,7 +1485,7 @@ function projectWorldPoint(x, y, elevation = 0) {
   const scale = projection.focal / depth;
   return {
     x: game.width / 2 + lateral * scale,
-    y: game.height * DRIVE.horizon + projection.focal * (DRIVE.cameraHeight - elevation) / depth,
+    y: game.height * projection.horizon + projection.focal * (projection.cameraHeight - elevation) / depth,
     depth,
     scale,
   };
@@ -1482,13 +1495,16 @@ function prepareProjection(interpolation = 1) {
   const cameraX = lerp(game.previousCamera.x, game.camera.x, interpolation);
   const cameraY = lerp(game.previousCamera.y, game.camera.y, interpolation);
   const cameraHeading = lerpAngle(game.previousCamera.heading, game.camera.heading, interpolation);
+  const camera = CAMERA_PRESETS[game.cameraMode];
   projection.forwardX = Math.cos(cameraHeading);
   projection.forwardY = Math.sin(cameraHeading);
   projection.rightX = -projection.forwardY;
   projection.rightY = projection.forwardX;
-  projection.cameraX = cameraX - projection.forwardX * DRIVE.cameraDistance;
-  projection.cameraY = cameraY - projection.forwardY * DRIVE.cameraDistance;
-  projection.focal = game.height * DRIVE.focalLength;
+  projection.cameraX = cameraX - projection.forwardX * DRIVE.cameraDistance * camera.distance;
+  projection.cameraY = cameraY - projection.forwardY * DRIVE.cameraDistance * camera.distance;
+  projection.focal = game.height * DRIVE.focalLength * camera.focal;
+  projection.cameraHeight = DRIVE.cameraHeight * camera.height;
+  projection.horizon = camera.horizon;
 }
 
 function drawWorld() {
@@ -1498,12 +1514,12 @@ function drawWorld() {
   sky.addColorStop(1, "#e4c49d");
   context.fillStyle = sky;
   context.fillRect(0, 0, game.width, game.height * .5);
-  const ground = context.createLinearGradient(0, game.height * DRIVE.horizon, 0, game.height);
+  const ground = context.createLinearGradient(0, game.height * projection.horizon, 0, game.height);
   ground.addColorStop(0, "#c6b99f");
   ground.addColorStop(.55, "#b9ad99");
   ground.addColorStop(1, "#9d9589");
   context.fillStyle = ground;
-  context.fillRect(0, game.height * DRIVE.horizon, game.width, game.height * (1 - DRIVE.horizon));
+  context.fillRect(0, game.height * projection.horizon, game.width, game.height * (1 - projection.horizon));
   drawDistantLandscape();
   drawRoads();
   for (const object of SCENE_WORLD_OBJECTS) {
@@ -1583,7 +1599,7 @@ function traceProjectedPoints(points, reverse = false) {
 }
 
 function drawDistantLandscape() {
-  const horizon = game.height * DRIVE.horizon;
+  const horizon = game.height * projection.horizon;
   context.save();
   const haze = context.createLinearGradient(0, horizon - 45, 0, horizon + 48);
   haze.addColorStop(0, "rgba(113, 142, 153, .08)");
@@ -3071,11 +3087,12 @@ function drawHeadlightBeams(width, length) {
 }
 
 function drawPlayerCar() {
+  const camera = CAMERA_PRESETS[game.cameraMode];
   if (atmosphereRenderer?.carProgram && !driveView.classList.contains("shader-fallback")) {
-    const width = clamp(game.width * .075, 48, 92);
+    const width = clamp(game.width * .075, 48, 92) * camera.carScale;
     const length = width * 1.86;
     context.save();
-    context.translate(game.width / 2, game.height * .82);
+    context.translate(game.width / 2, game.height * camera.carY);
     context.rotate(-game.car.visualSteer * .045 + game.car.driftAngle * .18);
     context.fillStyle = "rgba(18, 22, 27, .42)";
     context.beginPath();
@@ -3087,10 +3104,10 @@ function drawPlayerCar() {
     return;
   }
 
-  const width = clamp(game.width * .075, 48, 92);
+  const width = clamp(game.width * .075, 48, 92) * camera.carScale;
   const length = width * 1.86;
   const x = game.width / 2;
-  const y = game.height * .82;
+  const y = game.height * camera.carY;
   context.save();
   context.translate(x, y);
   context.rotate(-game.car.visualSteer * .045 + game.car.driftAngle * .18);
@@ -3509,6 +3526,17 @@ function updateTouchControls() {
     : "Explore five career stops. Hold Shift to boost, or Space + steer to drift.";
 }
 
+function setCameraMode(mode) {
+  if (!(mode in CAMERA_PRESETS)) return;
+  game.cameraMode = mode;
+  driveView.dataset.camera = mode;
+  document.querySelectorAll(".camera-control button[data-camera]").forEach((button) => {
+    button.setAttribute("aria-pressed", String(button.dataset.camera === mode));
+  });
+  if (!driveView.hidden && portfolioView.hidden) render();
+  if (game.driving) announce(`${CAMERA_PRESETS[mode].label.toLowerCase()} camera selected`);
+}
+
 function handleKeyDown(event) {
   if (isEditableTarget(event.target)) return;
   const key = event.key.toLowerCase();
@@ -3528,6 +3556,10 @@ function handleKeyDown(event) {
   } else if (key === "r" && game.driving && !game.dialogOpen) {
     event.preventDefault();
     resetCar();
+  } else if (key === "v" && game.driving && !game.dialogOpen) {
+    event.preventDefault();
+    const modes = Object.keys(CAMERA_PRESETS);
+    setCameraMode(modes[(modes.indexOf(game.cameraMode) + 1) % modes.length]);
   }
 }
 
@@ -3611,6 +3643,9 @@ function handleRoute() {
 }
 
 function installEvents() {
+  document.querySelectorAll(".camera-control button[data-camera]").forEach((button) => {
+    button.addEventListener("click", () => setCameraMode(button.dataset.camera));
+  });
   document.querySelectorAll(".atmosphere-control button[data-atmosphere]").forEach((button) => {
     button.addEventListener("click", () => {
       game.atmosphere = button.dataset.atmosphere;

@@ -62,11 +62,14 @@ body.drive-mode .view-switch:hover { border-color: var(--lime); background: rgba
 #worldCanvas { position: absolute; inset: 0; width: 100%; height: 100%; }
 .map-vignette { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, rgba(18, 27, 34, .24), transparent 53%), linear-gradient(0deg, rgba(18, 27, 34, .28), transparent 30%, rgba(18, 27, 34, .08)); }
 .scene-toolbar { position: absolute; z-index: 8; top: 91px; right: clamp(24px, 5vw, 76px); display: flex; align-items: center; gap: 8px; }
-.atmosphere-control, .scene-utility-controls { display: flex; align-items: center; gap: 3px; padding: 5px; border: 1px solid rgba(255,255,255,.19); border-radius: 999px; background: rgba(12, 16, 21, .64); box-shadow: 0 8px 26px rgba(8,12,16,.14); color: #f3f5f7; backdrop-filter: blur(14px); }
+.atmosphere-control, .camera-control, .scene-utility-controls { display: flex; align-items: center; gap: 3px; padding: 5px; border: 1px solid rgba(255,255,255,.19); border-radius: 999px; background: rgba(12, 16, 21, .64); box-shadow: 0 8px 26px rgba(8,12,16,.14); color: #f3f5f7; backdrop-filter: blur(14px); }
 .scene-control-label { padding: 0 8px 0 10px; color: rgba(235,240,244,.56); font: 8px var(--mono); letter-spacing: .11em; white-space: nowrap; }
 .atmosphere-control button { display: flex; align-items: center; gap: 6px; min-height: 30px; padding: 0 9px; border: 1px solid transparent; border-radius: 999px; background: transparent; color: rgba(237,241,245,.72); font: 8px var(--mono); letter-spacing: .05em; cursor: pointer; transition: background .2s, color .2s, border-color .2s; }
 .atmosphere-control button:hover { color: #fff; background: rgba(255,255,255,.09); }
 .atmosphere-control button[aria-pressed="true"] { border-color: rgba(255,255,255,.16); background: rgba(255,255,255,.13); color: #fff; }
+.camera-control button { min-height: 30px; padding: 0 10px; border: 1px solid transparent; border-radius: 999px; background: transparent; color: rgba(237,241,245,.72); font: 8px var(--mono); letter-spacing: .05em; cursor: pointer; transition: background .2s, color .2s, border-color .2s; }
+.camera-control button:hover { color: #fff; background: rgba(255,255,255,.09); }
+.camera-control button[aria-pressed="true"] { border-color: rgba(255,255,255,.16); background: rgba(255,255,255,.13); color: #fff; }
 .atmosphere-swatch { display: block; width: 9px; height: 9px; border-radius: 50%; box-shadow: 0 0 10px currentColor; }
 .swatch-golden { background: #ffbd55; color: #ffbd55; }
 .swatch-midday { background: #f3e19a; color: #f3e19a; }
@@ -328,14 +331,17 @@ body.drive-mode .view-switch:hover { border-color: var(--lime); background: rgba
   .primary-nav a::after { bottom: 0; }
   .view-switch { gap: 6px; padding: 8px 9px; font-size: 9px; }
   body.drive-mode .primary-nav { display: none; }
-  .drive-mode .scene-toolbar { top: 72px; right: 12px; left: 12px; justify-content: space-between; gap: 5px; }
-  .atmosphere-control, .scene-utility-controls { gap: 1px; padding: 4px; }
+  .drive-mode .scene-toolbar { top: 72px; right: 12px; left: 12px; display: grid; grid-template-columns: 1fr auto; justify-items: start; gap: 5px; }
+  .atmosphere-control, .camera-control, .scene-utility-controls { gap: 1px; padding: 4px; }
   .scene-control-label, .atmosphere-name, .scene-utility-button > span:last-child { display: none; }
   .atmosphere-control button { justify-content: center; min-width: 34px; min-height: 30px; padding: 0 7px; }
+  .camera-control { grid-column: 1 / -1; grid-row: 2; }
+  .camera-control button { min-height: 27px; padding: 0 9px; font-size: 7px; }
+  .scene-utility-controls { grid-column: 2; grid-row: 1; }
   .scene-utility-button { min-width: 34px; min-height: 30px; padding: 0 6px; }
   .scene-utility-button > span:first-child { font-size: 15px; }
   .drive-view { min-height: 680px; height: 100svh; }
-  .map-topline { top: 120px; left: 20px; right: 20px; }
+  .map-topline { top: 159px; left: 20px; right: 20px; }
   .map-status, .map-coordinates { font-size: 8px; }
   .map-coordinates { display: none; }
   .checkpoint-nav { top: 211px; right: 50%; width: min(300px, calc(100% - 30px)); transform: translateX(50%); }
