@@ -83,6 +83,21 @@ const ROUTE_SIGNS = [
   { roadId: "contact-connector", along: 130, side: 1 },
 ];
 
+const CHECKPOINT_PARKING_SIDES = {
+  experience: 1,
+  education: -1,
+  projects: 1,
+  skills: 1,
+  contact: 1,
+};
+const PARKING_BAY = {
+  offset: 53 * WORLD_SCALE,
+  halfWidth: 12 * WORLD_SCALE,
+  halfLength: 30 * WORLD_SCALE,
+  interactionRadius: 48 * WORLD_SCALE,
+  interactionExitRadius: 66 * WORLD_SCALE,
+};
+
 const BUILDINGS = [
   { x: 540, y: 62, w: 126, d: 100, h: 86, color: "#b77a5b", label: "CAMPUS HALL" },
   { x: 888, y: 58, w: 112, d: 86, h: 72, color: "#c6aa83", label: "STUDY HOUSE" },
@@ -327,6 +342,30 @@ function exhibitWorldPoint(exhibit) {
   return roadPoint(road, along, exhibit.side * DRIVE.exhibitOffset);
 }
 
+function checkpointParkingSpot(district) {
+  const road = ROAD_SEGMENTS.find((segment) => (
+    segment.id === district.id || segment.id.startsWith(`${district.id}-`)
+  ));
+  if (!road) return { ...district, parkingRoad: null, parkingAlong: 0, parkingSide: 1 };
+  const dx = road.x2 - road.x1;
+  const dy = road.y2 - road.y1;
+  const length = Math.hypot(dx, dy);
+  const along = clamp(
+    (district.x - road.x1) * (dx / length) + (district.y - road.y1) * (dy / length),
+    0,
+    length,
+  );
+  const side = CHECKPOINT_PARKING_SIDES[district.id] ?? 1;
+  const spot = roadPoint(road, along, side * PARKING_BAY.offset);
+  return {
+    ...district,
+    ...spot,
+    parkingRoad: road,
+    parkingAlong: along,
+    parkingSide: side,
+  };
+}
+
 const SCENE_EXHIBITS = exhibits
   .map((exhibit) => ({ exhibit, position: exhibitWorldPoint(exhibit), depth: 0 }))
   .filter(({ position }) => position);
@@ -336,7 +375,7 @@ const SCENE_DESTINATIONS = SCENE_EXHIBITS.map(({ exhibit, position }) => ({
   targetType: "exhibit",
 }));
 const SCENE_CHECKPOINTS = districts.map((district) => ({
-  ...district,
+  ...checkpointParkingSpot(district),
   targetType: "checkpoint",
 }));
 const SCENE_WORLD_OBJECTS = [
@@ -363,9 +402,9 @@ const SCENE_WORLD_OBJECTS = [
     y: entry.position.y,
     depth: 0,
   })),
-  ...districts.flatMap((district) => [
-    { kind: "district-marker", item: district, x: district.x, y: district.y, depth: 0 },
-    { kind: "district-sign", item: district, x: district.signX, y: district.signY, depth: 0 },
+  ...SCENE_CHECKPOINTS.flatMap((checkpoint) => [
+    { kind: "district-marker", item: checkpoint, x: checkpoint.x, y: checkpoint.y, depth: 0 },
+    { kind: "district-sign", item: checkpoint, x: checkpoint.signX, y: checkpoint.signY, depth: 0 },
   ]),
 ];
 
@@ -990,9 +1029,15 @@ function updateInteraction() {
   let closestRange = Infinity;
   const consider = (target) => {
     const range = distance(game.car, target);
-    const threshold = game.activePrompt?.id === target.id
-      ? DRIVE.interactionExitRadius
+    const interactionRadius = target.targetType === "checkpoint"
+      ? PARKING_BAY.interactionRadius
       : DRIVE.interactionRadius;
+    const interactionExitRadius = target.targetType === "checkpoint"
+      ? PARKING_BAY.interactionExitRadius
+      : DRIVE.interactionExitRadius;
+    const threshold = game.activePrompt?.id === target.id
+      ? interactionExitRadius
+      : interactionRadius;
     if (range < threshold && range < closestRange) {
       closest = target;
       closestRange = range;
@@ -1014,18 +1059,18 @@ function updateInteraction() {
   prompt.hidden = !next;
   if (next) {
     document.querySelector("#promptTitle").textContent = next.targetType === "checkpoint"
-      ? `Checkpoint: ${next.title}`
+      ? `Parked at ${next.shortTitle}`
       : `Explore ${next.title}`;
     document.querySelector("#promptHint").textContent = isMobile.matches
-      ? next.targetType === "checkpoint" ? "Tap E to explore this career area" : "Tap E to open"
-      : next.targetType === "checkpoint" ? "Press E or Enter to explore this career area" : "Press E or Enter to open";
+      ? next.targetType === "checkpoint" ? "Tap E to view this stop" : "Tap E to open"
+      : next.targetType === "checkpoint" ? "Press E or Enter to view this stop" : "Press E or Enter to open";
     document.querySelector("#promptOpen").innerHTML = next.targetType === "checkpoint"
-      ? 'ARRIVE <span aria-hidden="true">↗</span>'
+      ? 'EXPLORE <span aria-hidden="true">↗</span>'
       : 'OPEN <span aria-hidden="true">↗</span>';
     if (game.previousPrompt !== next.id) {
       announce(isMobile.matches
-        ? `${next.title} checkpoint nearby. Tap E to explore.`
-        : `${next.title} checkpoint nearby. Press E or Enter to explore.`);
+        ? `Parked at ${next.shortTitle}. Tap E to explore.`
+        : `Parked at ${next.shortTitle}. Press E or Enter to explore.`);
       game.previousPrompt = next.id;
     }
   } else {
@@ -1067,7 +1112,7 @@ function getNextCheckpoint() {
     game.checkpointIndex += 1;
   }
   const nextId = CHECKPOINT_ORDER[game.checkpointIndex];
-  return districts.find((district) => district.id === nextId) ?? null;
+  return SCENE_CHECKPOINTS.find((checkpoint) => checkpoint.id === nextId) ?? null;
 }
 
 function updateCheckpointNavigation() {
@@ -1105,11 +1150,12 @@ function updateCheckpointNavigation() {
     Math.cos(bearing - game.car.heading),
   );
   const angleDegrees = Math.abs(relativeBearing * 180 / Math.PI);
-  directionLabel.textContent = remaining < DRIVE.interactionRadius
-    ? Math.abs(game.car.speed) < DRIVE.interactionSpeed ? "PRESS E TO EXPLORE" : "SLOW DOWN TO ARRIVE"
+  const parked = Math.abs(game.car.speed) < DRIVE.interactionSpeed;
+  directionLabel.textContent = remaining < PARKING_BAY.interactionRadius
+    ? parked ? "PARKED · PRESS E TO VIEW" : "BRAKE TO PARK"
     : angleDegrees < 22 ? "CONTINUE AHEAD" : relativeBearing > 0 ? "TURN RIGHT" : "TURN LEFT";
-  distanceLabel.textContent = remaining < DRIVE.interactionRadius
-    ? "NEARBY"
+  distanceLabel.textContent = remaining < PARKING_BAY.interactionRadius
+    ? parked ? "PARKED" : "ARRIVING"
     : remaining >= 1000 ? `${(remaining / 1000).toFixed(1)} km` : `${Math.round(remaining)} m`;
   arrow.style.transform = `rotate(${remaining < 20 ? 0 : relativeBearing}rad)`;
 }
@@ -1545,6 +1591,14 @@ function drawWorld() {
   context.fillRect(0, game.height * projection.horizon, game.width, game.height * (1 - projection.horizon));
   drawDistantLandscape();
   drawRoads();
+  const nextCheckpoint = getNextCheckpoint();
+  for (const checkpoint of SCENE_CHECKPOINTS) {
+    drawCheckpointParkingBay(
+      checkpoint,
+      checkpoint.id === nextCheckpoint?.id,
+      game.completedCheckpoints.has(checkpoint.id),
+    );
+  }
   for (const object of SCENE_WORLD_OBJECTS) {
     object.depth = projectedDepth(object.x, object.y);
   }
@@ -2977,6 +3031,58 @@ function drawDistrictMarker(district) {
     context.arc(point.x, point.y - radius, clamp(radius * .38, 2, 6), 0, Math.PI * 2);
     context.fill();
   }
+}
+
+function drawCheckpointParkingBay(checkpoint, isCurrent, isComplete) {
+  const { parkingRoad: road, parkingAlong: along, parkingSide: side } = checkpoint;
+  if (!road) return;
+  const inside = side * (PARKING_BAY.offset - PARKING_BAY.halfWidth);
+  const outside = side * (PARKING_BAY.offset + PARKING_BAY.halfWidth);
+  const start = along - PARKING_BAY.halfLength;
+  const end = along + PARKING_BAY.halfLength;
+  const polygon = projectClippedGroundPolygon([
+    roadPoint(road, start, inside),
+    roadPoint(road, end, inside),
+    roadPoint(road, end, outside),
+    roadPoint(road, start, outside),
+  ]);
+  if (!polygon) return;
+  const center = projectWorldPoint(checkpoint.x, checkpoint.y);
+  if (!center || center.x < -140 || center.x > game.width + 140) return;
+
+  context.save();
+  context.fillStyle = isCurrent
+    ? "rgba(14, 24, 25, .78)"
+    : isComplete ? "rgba(22, 34, 30, .58)" : "rgba(20, 27, 29, .45)";
+  context.beginPath();
+  context.moveTo(polygon[0].x, polygon[0].y);
+  polygon.slice(1).forEach((point) => context.lineTo(point.x, point.y));
+  context.closePath();
+  context.fill();
+
+  const strokeBayLine = (lineStart, lineEnd) => {
+    const line = projectWorldLine(lineStart, lineEnd, DRIVE.roadWidth * .3);
+    if (!line) return;
+    context.beginPath();
+    context.moveTo(line[0].x, line[0].y);
+    context.lineTo(line[1].x, line[1].y);
+    context.stroke();
+  };
+  context.strokeStyle = isCurrent
+    ? `${checkpoint.color}f0`
+    : isComplete ? `${checkpoint.color}a0` : "rgba(239, 239, 225, .62)";
+  context.lineWidth = clamp(center.scale * 1.5, .8, 3);
+  context.lineCap = "round";
+  strokeBayLine(roadPoint(road, start, inside), roadPoint(road, end, inside));
+  strokeBayLine(roadPoint(road, start, outside), roadPoint(road, end, outside));
+  strokeBayLine(roadPoint(road, end, inside), roadPoint(road, end, outside));
+
+  context.fillStyle = isCurrent || isComplete ? checkpoint.color : "rgba(245, 244, 230, .78)";
+  context.font = `700 ${clamp(center.scale * 16, 8, 17)}px 'DM Sans', sans-serif`;
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+  context.fillText("P", center.x, center.y);
+  context.restore();
 }
 
 function drawCheckpointBeacon(checkpoint) {
