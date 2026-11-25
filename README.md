@@ -56,7 +56,7 @@ Edit the matching district in `districts` in `src/content.js`. `x` and `y` are w
 
 ## Tune driving
 
-Change the `DRIVE` configuration at the top of `src/main.js`. It contains world dimensions, acceleration, braking, speed limits, steering, camera easing, interaction thresholds, and boost drain/recharge. `RENDER_DISTANCE` controls the world view range. `CHECKPOINT_ORDER` controls the guided career route; `STICKERS`, `STADIUM`, and `FOUNTAIN` define collectible rewards and major landmarks. The world renderer and vehicle loop are in the same module to keep this small static release easy to run.
+Change the `DRIVE` configuration at the top of `src/main.js`. It contains world dimensions, acceleration, braking, speed limits, steering, camera easing, interaction thresholds, and boost drain/recharge. Steering eases into turns, drift slip scales with speed, and the camera adds a small speed-sensitive focal shift; the car also gets speed-sensitive body roll and pitch. The WebGL and Canvas renderers both retain a fallback path. The map renderer caps full-scene drawing at 60 FPS, paces the atmosphere pass separately, and reduces canvas resolution only after sustained slow frames; it recovers resolution gradually when performance is stable. `RENDER_DISTANCE` controls the world view range. `CHECKPOINT_ORDER` controls the guided career route; `STICKERS`, `STADIUM`, and `FOUNTAIN` define collectible rewards and major landmarks. The world renderer and vehicle loop are in the same module to keep this small static release easy to run.
 
 ## Assets and deployment
 

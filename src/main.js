@@ -170,6 +170,10 @@ const game = {
   width: 0,
   height: 0,
   pixelRatio: 1,
+  qualityScale: 1,
+  averageFrameTime: 16.7,
+  lastQualityCheck: 0,
+  lastWorldRender: 0,
   lastFrame: 0,
   accumulator: 0,
   running: false,
@@ -184,7 +188,7 @@ const game = {
   cameraMode: "chase",
   hudVisible: true,
   checkpointIndex: 0,
-  car: { x: 780 * WORLD_SCALE, y: 510 * WORLD_SCALE, heading: -Math.PI / 2, speed: 0, visualSteer: 0, braking: false, driftAngle: 0, boosting: false },
+  car: { x: 780 * WORLD_SCALE, y: 510 * WORLD_SCALE, heading: -Math.PI / 2, speed: 0, steering: 0, visualSteer: 0, visualRoll: 0, visualPitch: 0, braking: false, driftAngle: 0, boosting: false },
   camera: { x: 780 * WORLD_SCALE, y: 510 * WORLD_SCALE, heading: -Math.PI / 2 },
   previousCamera: { x: 780 * WORLD_SCALE, y: 510 * WORLD_SCALE, heading: -Math.PI / 2 },
   keys: new Set(),
@@ -780,7 +784,10 @@ function resetCar() {
   game.car.y = 510 * WORLD_SCALE;
   game.car.heading = -Math.PI / 2;
   game.car.speed = 0;
+  game.car.steering = 0;
   game.car.visualSteer = 0;
+  game.car.visualRoll = 0;
+  game.car.visualPitch = 0;
   game.car.driftAngle = 0;
   game.car.boosting = false;
   game.boostCharge = 100;
@@ -851,16 +858,21 @@ function updateCar(dt) {
 
   if (!onRoad && Math.abs(car.speed) > limit) car.speed = Math.sign(car.speed) * limit;
   const steerInput = Number(controls.right) - Number(controls.left);
-  car.visualSteer = steerInput;
+  car.steering = lerp(car.steering, steerInput, 1 - Math.exp(-11 * dt));
+  car.visualSteer = car.steering;
   car.braking = controls.brake && car.speed > 0;
-  if (steerInput && Math.abs(car.speed) > 1) {
+  const speedRatio = clamp(Math.abs(car.speed) / DRIVE.maxForwardSpeed, 0, 1);
+  const leanBlend = 1 - Math.exp(-8 * dt);
+  car.visualRoll = lerp(car.visualRoll, -car.steering * speedRatio * 0.075, leanBlend);
+  car.visualPitch = lerp(car.visualPitch, car.braking ? 0.055 : controls.accelerate && car.speed > 0 ? -0.022 : 0, leanBlend);
+  const drifting = controls.drift && Math.abs(car.speed) > 28 && Math.abs(car.steering) > 0.03;
+  if (car.steering && Math.abs(car.speed) > 1) {
     const speedFactor = 0.52 + 0.38 * Math.min(Math.abs(car.speed) / DRIVE.maxForwardSpeed, 1);
-    const drifting = controls.drift && Math.abs(car.speed) > 28;
-    car.heading += steerInput * (drifting ? DRIVE.driftSteering : DRIVE.maxSteering) * speedFactor * Math.sign(car.speed) * dt;
+    car.heading += car.steering * (drifting ? DRIVE.driftSteering : DRIVE.maxSteering) * speedFactor * Math.sign(car.speed) * dt;
   }
 
-  const drifting = controls.drift && Math.abs(car.speed) > 28 && Boolean(steerInput);
-  car.driftAngle = lerp(car.driftAngle, drifting ? steerInput * 0.34 : 0, Math.min(1, (drifting ? 3.1 : 2.3) * dt));
+  const driftAngle = drifting ? car.steering * (0.14 + speedRatio * 0.25) : 0;
+  car.driftAngle = lerp(car.driftAngle, driftAngle, Math.min(1, (drifting ? 3.1 : 2.8) * dt));
   const movementHeading = car.heading + car.driftAngle;
   const dx = Math.cos(movementHeading) * car.speed * dt;
   const dy = Math.sin(movementHeading) * car.speed * dt;
@@ -1106,7 +1118,7 @@ function resizeCanvas() {
   const bounds = driveView.getBoundingClientRect();
   game.width = Math.max(1, bounds.width);
   game.height = Math.max(1, bounds.height);
-  game.pixelRatio = Math.min(window.devicePixelRatio || 1, isMobile.matches ? 1.5 : 2);
+  game.pixelRatio = Math.min(window.devicePixelRatio || 1, isMobile.matches ? 1.5 : 2) * game.qualityScale;
   canvas.width = Math.round(game.width * game.pixelRatio);
   canvas.height = Math.round(game.height * game.pixelRatio);
   canvas.style.width = `${game.width}px`;
@@ -1295,6 +1307,8 @@ function createAtmosphereRenderer(target) {
     uniform float u_car_y;
     uniform float u_turn;
     uniform float u_drift;
+    uniform float u_roll;
+    uniform float u_pitch;
     uniform float u_speed;
     uniform float u_time;
     varying vec3 v_color;
@@ -1308,15 +1322,17 @@ function createAtmosphereRenderer(target) {
         a_position.x * c - a_position.y * s,
         a_position.x * s + a_position.y * c
       );
+      float bodyHeight = a_position.z + a_position.x * u_roll + a_position.y * u_pitch;
       float bounce = sin(u_time * 9.0) * min(u_speed, 1.0) * 0.006;
-      float screenY = rotated.y * 0.9 - a_position.z * 0.48 + bounce;
+      float screenY = rotated.y * 0.9 - bodyHeight * 0.48 + bounce;
       float centerY = 1.0 - 2.0 * u_car_y;
       float clipX = rotated.x * u_size * 2.0 / u_resolution.x;
       float clipY = centerY - screenY * u_size * 2.0 / u_resolution.y;
-      float depth = 0.52 - a_position.z * 0.65 - rotated.y * 0.018;
+      float depth = 0.52 - bodyHeight * 0.65 - rotated.y * 0.018;
       gl_Position = vec4(clipX, clipY, depth, 1.0);
       v_color = a_color;
-      v_normal = normalize(vec3(a_normal.x * c - a_normal.y * s, a_normal.x * s + a_normal.y * c, a_normal.z));
+      vec3 bodyNormal = normalize(vec3(a_normal.x - a_normal.z * u_roll, a_normal.y - a_normal.z * u_pitch, a_normal.z));
+      v_normal = normalize(vec3(bodyNormal.x * c - bodyNormal.y * s, bodyNormal.x * s + bodyNormal.y * c, bodyNormal.z));
       v_view = normalize(vec3(-rotated.x * 0.24, -rotated.y * 0.18, 1.0));
     }
   `);
@@ -1382,6 +1398,8 @@ function createAtmosphereRenderer(target) {
         carY: gl.getUniformLocation(carProgram, "u_car_y"),
         turn: gl.getUniformLocation(carProgram, "u_turn"),
         drift: gl.getUniformLocation(carProgram, "u_drift"),
+        roll: gl.getUniformLocation(carProgram, "u_roll"),
+        pitch: gl.getUniformLocation(carProgram, "u_pitch"),
         speed: gl.getUniformLocation(carProgram, "u_speed"),
         time: gl.getUniformLocation(carProgram, "u_time"),
         boost: gl.getUniformLocation(carProgram, "u_boost"),
@@ -1428,6 +1446,8 @@ function resizeAtmosphereRenderer() {
 
 function drawAtmosphere(timestamp) {
   if (!atmosphereRenderer || driveView.classList.contains("shader-fallback")) return;
+  const targetFrameInterval = 1000 / (game.driving ? 60 : reducedMotion.matches ? 1 : 30);
+  if (timestamp - atmosphereRenderer.lastRenderedAt < targetFrameInterval) return;
   if (atmosphereRenderer.gl.isContextLost()) {
     driveView.classList.add("shader-fallback");
     return;
@@ -1463,6 +1483,8 @@ function drawAtmosphere(timestamp) {
   gl.uniform1f(carAttributes.carY, camera.carY);
   gl.uniform1f(carAttributes.turn, game.car.visualSteer);
   gl.uniform1f(carAttributes.drift, game.car.driftAngle);
+  gl.uniform1f(carAttributes.roll, game.car.visualRoll);
+  gl.uniform1f(carAttributes.pitch, game.car.visualPitch);
   gl.uniform1f(carAttributes.speed, Math.min(Math.abs(game.car.speed) / DRIVE.maxForwardSpeed, 1));
   gl.uniform1f(carAttributes.time, reducedMotion.matches ? 0 : timestamp * .001);
   gl.uniform1f(carAttributes.boost, game.car.boosting ? 1 : 0);
@@ -1502,8 +1524,9 @@ function prepareProjection(interpolation = 1) {
   projection.rightY = projection.forwardX;
   projection.cameraX = cameraX - projection.forwardX * DRIVE.cameraDistance * camera.distance;
   projection.cameraY = cameraY - projection.forwardY * DRIVE.cameraDistance * camera.distance;
-  projection.focal = game.height * DRIVE.focalLength * camera.focal;
   projection.cameraHeight = DRIVE.cameraHeight * camera.height;
+  const speedRatio = clamp(Math.abs(game.car.speed) / DRIVE.maxForwardSpeed, 0, 1);
+  projection.focal = game.height * DRIVE.focalLength * camera.focal * (1 + speedRatio * 0.07);
   projection.horizon = camera.horizon;
 }
 
@@ -3107,10 +3130,10 @@ function drawPlayerCar() {
   const width = clamp(game.width * .075, 48, 92) * camera.carScale;
   const length = width * 1.86;
   const x = game.width / 2;
-  const y = game.height * camera.carY;
+  const y = game.height * camera.carY + game.car.visualPitch * length * 0.15;
   context.save();
   context.translate(x, y);
-  context.rotate(-game.car.visualSteer * .045 + game.car.driftAngle * .18);
+  context.rotate(-game.car.visualSteer * .045 + game.car.driftAngle * .18 + game.car.visualRoll);
   context.fillStyle = "rgba(18, 22, 27, .42)";
   context.beginPath();
   context.ellipse(4, length * .19, width * .78, length * .58, 0, 0, Math.PI * 2);
@@ -3442,8 +3465,24 @@ function frame(timestamp) {
       return;
     }
     if (!game.lastFrame) game.lastFrame = timestamp;
-    const elapsed = Math.min((timestamp - game.lastFrame) / 1000, 0.1);
+    const frameDuration = timestamp - game.lastFrame;
+    const elapsed = Math.min(frameDuration / 1000, 0.1);
     game.lastFrame = timestamp;
+    if (frameDuration > 0 && game.driving && !driveView.hidden) {
+      game.averageFrameTime = lerp(game.averageFrameTime, frameDuration, 0.06);
+      if (timestamp - game.lastQualityCheck >= 2500) {
+        game.lastQualityCheck = timestamp;
+        const nextQualityScale = game.averageFrameTime > 22
+          ? Math.max(0.7, game.qualityScale * 0.88)
+          : game.averageFrameTime < 16.5
+            ? Math.min(1, game.qualityScale + 0.04)
+            : game.qualityScale;
+        if (nextQualityScale !== game.qualityScale) {
+          game.qualityScale = nextQualityScale;
+          resizeCanvas();
+        }
+      }
+    }
     if (game.driving && !game.dialogOpen && portfolioView.hidden) {
       game.accumulator += elapsed;
       while (game.accumulator >= DRIVE.fixedStep) {
@@ -3480,7 +3519,10 @@ function frame(timestamp) {
       }
     }
     if (!driveView.hidden && game.driving && !game.dialogOpen) {
-      render(game.accumulator / DRIVE.fixedStep);
+      if (!game.lastWorldRender || timestamp - game.lastWorldRender >= 1000 / 60) {
+        game.lastWorldRender = timestamp;
+        render(game.accumulator / DRIVE.fixedStep);
+      }
     }
     if (!driveView.hidden && portfolioView.hidden) drawAtmosphere(timestamp);
   } catch (error) {
@@ -3499,6 +3541,7 @@ function startLoop() {
 
 function setDriving(active) {
   game.driving = active;
+  document.body.classList.toggle("drive-mode", active);
   driveView.classList.toggle("is-driving", active);
   mapLegend.hidden = active || isMobile.matches;
   document.querySelector("#sceneMapToggle").setAttribute("aria-expanded", String(!mapLegend.hidden));
