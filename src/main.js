@@ -305,7 +305,7 @@ function updateStickerShelf() {
   });
   document.querySelector("#stickerCount").textContent = `${game.earnedStickers.size} / ${STICKERS.length}`;
   document.querySelector("#stickerEmpty").hidden = game.earnedStickers.size > 0;
-  stickerShelf.hidden = !game.driving;
+  stickerShelf.hidden = !game.driving || game.earnedStickers.size === 0;
 }
 
 function awardSticker(id) {
